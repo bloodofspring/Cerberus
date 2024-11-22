@@ -204,6 +204,11 @@ class GetDateTime(BaseHandler):
         return call_data
 
     async def submit(self):
+        self.datetime = datetime(
+            year=self.datetime.year, month=self.datetime.month, day=self.datetime.day,
+            hour=self.datetime.hour, minute=self.datetime.minute, second=self.datetime.second,
+            microsecond=datetime.now().microsecond
+        )
         created_send_time = SendTime.create(
             send_date=self.datetime.date(),
             send_time=self.datetime.time(),
