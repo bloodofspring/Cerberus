@@ -44,14 +44,15 @@ class BaseHandler:
         self.client = client
         self.request = request
 
-        try:
-            await self.func()
-        except Exception as e:
-            print(
-                Fore.YELLOW + f"[{datetime.now()}][!]>>-||--> " +
-                Fore.RED + f"Ошибка в {self.__name__}! [type={type(e)}; text={str(e)}]"
-            )
+        # try:
+        #     await self.func()
+        # except Exception as e:
+        #     print(
+        #         Fore.YELLOW + f"[{datetime.now()}][!]>>-||--> " +
+        #         Fore.RED + f"Ошибка в {self.__name__}! [type={type(e)}; text={str(e)}]"
+        #     )
+        await self.func()
 
     @property
     def de_pyrogram_handler(self):
-        return self.HANDLER(self.func, self.FILTER)
+        return self.HANDLER(self.execute, self.FILTER)

@@ -9,6 +9,7 @@ from database.models import ChatToSend, SendTime, CreatedTimePoints, Notificatio
 
 
 class GetChatToSend(BaseHandler):
+    __name__ = "GetChatToSend"
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("CHAT"))
 
@@ -96,6 +97,7 @@ class GetChatToSend(BaseHandler):
 
 
 class ChatRegister(BaseHandler):
+    __name__ = "ChatRegister"
     FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip(
         "-").isalnum())
 
@@ -116,6 +118,7 @@ class ChatRegister(BaseHandler):
 
 
 class GetDateTime(BaseHandler):
+    __name__ = "GetDateTime"
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("CHANGE"))
 

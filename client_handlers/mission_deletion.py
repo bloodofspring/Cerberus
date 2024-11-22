@@ -6,6 +6,7 @@ from database.models import Notifications
 
 
 class RmMission(BaseHandler):
+    __name__ = "RmMission"
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("rm_mission"))
 

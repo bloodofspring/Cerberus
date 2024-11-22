@@ -39,9 +39,14 @@ class MissionController:
         nearest = Notifications.select().where(
             (Notifications.created_by == user)
         )
-        return tuple(sorted(nearest, key=lambda t: (
+        result = tuple(sorted(nearest, key=lambda t: (
             t.send_at.send_time >= self.now.time(), t.send_at.send_time,
-        ), reverse=True))[0]
+        ), reverse=True))
+
+        if not result:
+            return None
+
+        return result[0]
 
     async def run(self):  # ToDo: Протестировать
         if IsWaiting.select()[:]:

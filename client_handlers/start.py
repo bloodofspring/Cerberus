@@ -8,6 +8,7 @@ from util import render_notification
 
 
 class StartCmd(BaseHandler):
+    __name__ = "StartCmd"
     FILTER = command("start")
 
     async def func(self):
@@ -18,7 +19,6 @@ class StartCmd(BaseHandler):
         ]])
         MissionController.delete_unused_time_points()
         n_for_cur_user = MissionController().nearest_mission_for_current_user(user=self.db_user)
-        await MissionController().run()
 
         await self.request.reply(
             (
@@ -27,3 +27,5 @@ class StartCmd(BaseHandler):
             ),
             reply_markup=keyboard
         )
+
+        await MissionController().run()

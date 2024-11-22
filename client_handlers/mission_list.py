@@ -9,6 +9,8 @@ from util import render_notification
 
 
 class MissionsList(BaseHandler):
+    __name__ = "MissionsList"
+    HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data == "missions_list")
 
     @property
@@ -31,13 +33,14 @@ class MissionsList(BaseHandler):
 
     async def func(self):
         keyboard = self.keyboard
-        await self.request.reply(
+        await self.request.message.edit(
             "Список напоминаний{}".format(" (у вас нет напоминаний)" if len(keyboard.inline_keyboard) == 1 else ":"),
             reply_markup=keyboard
         )
 
 
 class Mission(BaseHandler):
+    __name__ = "Mission"
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("at_mission"))
 
