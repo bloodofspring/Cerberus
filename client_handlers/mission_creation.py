@@ -9,6 +9,43 @@ from controllers import MissionController
 from database.models import ChatToSend, SendTime, CreatedTimePoints, Notifications
 
 
+class ChatRegister(BaseHandler):
+    __name__ = "ChatRegister"
+    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip(
+        "-").isalnum())
+
+    async def func(self):
+        try:
+            chat = await self.client.get_chat(int(self.request.text))
+            me = await self.client.get_me()
+            me_in_chat = await self.client.get_chat_member(int(self.request.text), me.id)
+
+            if me_in_chat.status != me_in_chat.status.ADMINISTRATOR:
+                raise
+
+            if me_in_chat.permissions is not None and not me_in_chat.permissions.can_send_messages:
+                raise
+        except (ValueError, TypeError, Exception) as e:
+            print(type(e), e)
+            await self.request.reply("Чата с таким ID  не существует или бот не добавлен в него!")
+            await self.request.reply(
+                "Пожалуйста, добавьте бота в чат, назначьте его администратором и проверьте корректность ID")
+            return
+
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("Да", callback_data=f"CHAT-SAVE-1={self.request.text}"),
+            InlineKeyboardButton("Нет", callback_data="CHAT-SAVE-0")
+        ]])
+        await self.request.reply(f"Сохранить чат {chat.title}?", reply_markup=keyboard)
+
+
+class NotificationTextRegister(BaseHandler):
+    __name__ = "NotificationTextRegister"
+    FILTER = create(lambda _, __, m: m and m.text and m.text.startswith("!"))
+
+    async def func(self):
+        pass # save notification
+
 class GetChatToSend(BaseHandler):
     __name__ = "GetChatToSend"
     HANDLER = CallbackQueryHandler
@@ -31,7 +68,8 @@ class GetChatToSend(BaseHandler):
                 continue
 
             keyboard.inline_keyboard.append([InlineKeyboardButton(
-                chat.title if chat.title is not None else f"Личный чат пользователя @{self.request.from_user.username}", callback_data=f"CHAT-{c.tg_id}"
+                chat.title if chat.title is not None else f"Личный чат пользователя @{self.request.from_user.username}",
+                callback_data=f"CHAT-{c.tg_id}"
             )])
 
         keyboard.inline_keyboard.append([
@@ -118,36 +156,6 @@ class GetChatToSend(BaseHandler):
 
             case _ as c if c.strip("CHAT-").isalnum():
                 await self.apply_chat(chat_id=int("-" + c.strip("CHAT-")))
-
-
-class ChatRegister(BaseHandler):
-    __name__ = "ChatRegister"
-    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip(
-        "-").isalnum())
-
-    async def func(self):
-        try:
-            chat = await self.client.get_chat(int(self.request.text))
-            me = await self.client.get_me()
-            me_in_chat = await self.client.get_chat_member(int(self.request.text), me.id)
-
-            if me_in_chat.status != me_in_chat.status.ADMINISTRATOR:
-                raise
-
-            if me_in_chat.permissions is not None and not me_in_chat.permissions.can_send_messages:
-                raise
-        except (ValueError, TypeError, Exception) as e:
-            print(type(e), e)
-            await self.request.reply("Чата с таким ID  не существует или бот не добавлен в него!")
-            await self.request.reply(
-                "Пожалуйста, добавьте бота в чат, назначьте его администратором и проверьте корректность ID")
-            return
-
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("Да", callback_data=f"CHAT-SAVE-1={self.request.text}"),
-            InlineKeyboardButton("Нет", callback_data="CHAT-SAVE-0")
-        ]])
-        await self.request.reply(f"Сохранить чат {chat.title}?", reply_markup=keyboard)
 
 
 class GetDateTime(BaseHandler):
