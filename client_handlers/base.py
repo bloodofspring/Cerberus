@@ -26,8 +26,8 @@ class BaseHandler:
 
         if created:
             print(
-                Fore.YELLOW + f"[{datetime.now()}][!]>>-||--> " +
-                Fore.GREEN + f"Новый пользователь! [total={len(BotUsers.select())}; id={self.request.from_user.id}]"
+                Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                Fore.LIGHTGREEN_EX + f"Новый пользователь! [total={len(BotUsers.select())}; id={self.request.from_user.id}]"
             )
 
         return db

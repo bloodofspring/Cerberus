@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from colorama import Fore
 
-from database.models import SendTime, BotUsers, Notifications, IsWaiting
+from database.models import SendTime, BotUsers, Notifications, IsWaiting, ChatToSend
 from instances import client
 
 
@@ -92,7 +92,7 @@ class MissionController:
         await asyncio.sleep(seconds)
         await self.execute_missions(missions)
 
-    async def execute_missions(self, missions: tuple[Notifications] | None):
+    async def execute_missions(self, missions: tuple[Notifications, ...] | None):
         IsWaiting.truncate_table()
         if missions is None:
             print(
@@ -111,7 +111,11 @@ class MissionController:
         for m in missions:
             try:
                 await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
+
+                if m.send_at.consider_date or m.send_at.delete_after_execution:
+                    Notifications.delete_by_id(m.id)
             except Exception as e:
                 cannot_send = e
+                print(Fore.RED + str(cannot_send))
 
         await self.run()

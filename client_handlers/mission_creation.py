@@ -15,17 +15,38 @@ class GetChatToSend(BaseHandler):
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("CHAT"))
 
     @property
-    def chats_keyboard(self) -> InlineKeyboardMarkup:
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"Чат {c.tg_id}", callback_data=f"CHAT-{c.tg_id}")
-        ] for c in self.db_user.chats] + [[InlineKeyboardButton("+ Добавить чат", callback_data="CHAT-ADD")]])
+    async def chats_keyboard(self) -> InlineKeyboardMarkup:
+        if ChatToSend.get_or_none(tg_id=self.request.message.chat.id) is None:
+            ChatToSend.create(tg_id=self.request.message.chat.id, user=self.db_user)
+
+        keyboard = InlineKeyboardMarkup([])
+
+        for c in self.db_user.chats:
+            try:
+                chat = await self.client.get_chat(c.tg_id)
+            except Exception as e:
+                cannot_get_chat = e
+                ChatToSend.delete_by_id(c.id)
+
+                continue
+
+            keyboard.inline_keyboard.append([InlineKeyboardButton(
+                chat.title if chat.title is not None else f"Личный чат пользователя @{self.request.from_user.username}", callback_data=f"CHAT-{c.tg_id}"
+            )])
+
+        keyboard.inline_keyboard.append([
+            InlineKeyboardButton("Этот чат", callback_data="CHAT-THIS")
+        ])
+        keyboard.inline_keyboard.append([
+            InlineKeyboardButton("+ Добавить чат", callback_data="CHAT-ADD")
+        ])
 
         return keyboard
 
     async def add_chat(self):
         await self.request.message.edit((
             "Отправьте сообщением ниже ID чата.\n"
-            "Пример: ```-1002207320665```\n"
+            "Пример: **-1002207320665**\n"
             "Получить ID чата можно с помощью @LeadConverterToolkitBot"
         ), reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("Отмена", callback_data="CHAT")
@@ -53,9 +74,6 @@ class GetChatToSend(BaseHandler):
         await self.main()
 
     async def apply_chat(self, chat_id: int):
-        if chat_id > 0:
-            raise Exception("ID чата не может быть положительным")
-
         try:
             db_user = self.db_user
             send_time: SendTime = CreatedTimePoints.select().where(
@@ -81,7 +99,7 @@ class GetChatToSend(BaseHandler):
 
     async def main(self):
         await self.request.message.edit(
-            "Выберите чат для отправки напоминаний", reply_markup=self.chats_keyboard
+            "Выберите чат для отправки напоминаний", reply_markup=await self.chats_keyboard
         )
 
     async def func(self):
@@ -91,6 +109,9 @@ class GetChatToSend(BaseHandler):
 
             case "CHAT-ADD":
                 await self.add_chat()
+
+            case "CHAT-THIS":
+                await self.apply_chat(chat_id=self.request.message.chat.id)
 
             case _ as c if c.startswith("CHAT-SAVE-"):
                 await self.save_chat(save=int(self.request.data[10]))
@@ -107,7 +128,16 @@ class ChatRegister(BaseHandler):
     async def func(self):
         try:
             chat = await self.client.get_chat(int(self.request.text))
-        except (ValueError, TypeError, Exception):
+            me = await self.client.get_me()
+            me_in_chat = await self.client.get_chat_member(int(self.request.text), me.id)
+
+            if me_in_chat.status != me_in_chat.status.ADMINISTRATOR:
+                raise
+
+            if me_in_chat.permissions is not None and not me_in_chat.permissions.can_send_messages:
+                raise
+        except (ValueError, TypeError, Exception) as e:
+            print(type(e), e)
             await self.request.reply("Чата с таким ID  не существует или бот не добавлен в него!")
             await self.request.reply(
                 "Пожалуйста, добавьте бота в чат, назначьте его администратором и проверьте корректность ID")
