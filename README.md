@@ -1,2 +1,2 @@
-# TheBestStructureOfTelegramBot
-базовая структура для отличного Телеграм бота
+# Arkudanus
+Бот для напоминаний
