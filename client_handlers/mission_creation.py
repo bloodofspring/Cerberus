@@ -6,7 +6,8 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
 from controllers import MissionController
-from database.models import ChatToSend, SendTime, CreatedTimePoints, Notifications
+from database.models import ChatToSend, SendTime, CreationSession, Notifications
+from util import create_mission, get_last_session
 
 
 class ChatRegister(BaseHandler):
@@ -44,7 +45,17 @@ class NotificationTextRegister(BaseHandler):
     FILTER = create(lambda _, __, m: m and m.text and m.text.startswith("!"))
 
     async def func(self):
-        pass # save notification
+        session = get_last_session(self.db_user)
+        if session is None:
+            return
+
+        session.text = self.request.text.lstrip("!")
+        CreationSession.save(session)
+
+        create_mission(session=session)
+        await self.request.reply("Напоминание создано!")
+        await asyncio.sleep(1)
+        await MissionController().reload()
 
 class GetChatToSend(BaseHandler):
     __name__ = "GetChatToSend"
@@ -112,28 +123,17 @@ class GetChatToSend(BaseHandler):
         await self.main()
 
     async def apply_chat(self, chat_id: int):
-        try:
-            db_user = self.db_user
-            send_time: SendTime = CreatedTimePoints.select().where(
-                CreatedTimePoints.user == db_user
-            ).order_by(CreatedTimePoints.updated_at)[-1].time_point
-        except IndexError:
-            await self.request.message.edit("К сожалению, произошла ошибка! Попробуйте заново создать напоминание!")
+        session = get_last_session(self.db_user)
+        if session is None:
             return
 
-        send_time.is_used = True
-        SendTime.save(send_time)
+        ChatToSend.get_or_create(tg_id=chat_id, user=self.db_user)
+        session.chat_to_send_id = chat_id
+        CreationSession.save(session)
 
-        Notifications.create(
-            text=f"test notification. Created at {datetime.now()}",
-            send_at=send_time,
-            chat_to_send=ChatToSend.get_or_create(tg_id=chat_id, user=db_user)[0],
-            created_by=db_user,
-        )
-        CreatedTimePoints.delete_by_id(send_time.id)
-        await self.request.message.edit("Напоминание создано!")
-        await asyncio.sleep(1)
-        await MissionController().reload()
+        await self.request.message.edit("Чат выбран!")
+        await asyncio.sleep(0.5)
+        await self.request.message.edit("Отправьте текст напоминания ниже! Сообщение начните с символа '!'")
 
     async def main(self):
         await self.request.message.edit(
@@ -266,7 +266,12 @@ class GetDateTime(BaseHandler):
             delete_after_execution=self.del_after_exec,
             is_used=False,
         )
-        CreatedTimePoints.create(time_point=created_send_time, user=self.db_user)
+        CreationSession.create(
+            user=self.db_user,
+            time_point=created_send_time,
+            chat_to_send_id=-1,
+            text="",
+        )
 
         await self.request.message.edit(
             "Время отправки сохранено!",
