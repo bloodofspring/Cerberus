@@ -10,7 +10,7 @@ class MissionController:
         self.now = datetime.now()
 
     @property
-    def today_missions(self) -> tuple[Notifications, SendTime] | tuple[None, None]:
+    def today_missions(self) -> tuple[tuple[Notifications, ...], SendTime] | tuple[None, None]:
         today_missions = SendTime.select().where(
             SendTime.is_used & (SendTime.send_time >= self.now.time()) & (
                     (SendTime.consider_date & SendTime.send_date == self.now.date()) |
@@ -23,7 +23,7 @@ class MissionController:
             return None, None
 
         nearest: SendTime = today_missions[0]
-        nearest_operations = tuple(map(
+        nearest_operations: tuple[Notifications, ...] = tuple(map(
             lambda t: t.oper[0], filter(lambda t: t.send_time == nearest.send_time, today_missions)
         ))
 
