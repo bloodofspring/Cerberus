@@ -18,6 +18,16 @@ class BaseHandler:
         self.request: request_type | None = None
         self.client: Client | None = None
 
+    @property
+    def db_user(self):
+        user_id = self.request.message.chat.id if isinstance(self.request, CallbackQuery) else self.request.chat.id
+        db, created = Users.get_or_create(tg_id=user_id)
+
+        if created:
+            print(f"New user! Users: {len(Users.select())}")
+
+        return db
+
     async def func(self):
         raise NotImplementedError
 
