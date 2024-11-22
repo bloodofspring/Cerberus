@@ -22,17 +22,12 @@ class BaseHandler:
 
     @property
     def db_user(self):
-        if isinstance(self.request, types.CallbackQuery):
-            user_id = self.request.message.chat.id
-        else:
-            user_id = self.request.chat.id
-
-        db, created = BotUsers.get_or_create(tg_id=user_id)
+        db, created = BotUsers.get_or_create(tg_id=self.request.from_user.id)
 
         if created:
             print(
                 Fore.YELLOW + f"[{datetime.now()}][!]>>-||--> " +
-                Fore.GREEN + f"Новый пользователь! [total={len(BotUsers.select())}; id={user_id}]"
+                Fore.GREEN + f"Новый пользователь! [total={len(BotUsers.select())}; id={self.request.from_user.id}]"
             )
 
         return db
@@ -43,6 +38,9 @@ class BaseHandler:
     async def execute(self, client: Client, request: request_type):
         self.client = client
         self.request = request
+
+        if request.from_user is None:
+            return
 
         try:
             await self.func()
