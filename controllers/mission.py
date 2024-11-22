@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from colorama import Fore
 
-from database.models import SendTime, BotUsers, Notifications, IsWaiting, ChatToSend
+from database.models import SendTime, BotUsers, Notifications, IsWaiting
 from instances import client
 
 
