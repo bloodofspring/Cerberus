@@ -76,6 +76,7 @@ class GetChatToSend(BaseHandler):
         )
         CreatedTimePoints.delete_by_id(send_time.id)
         await self.request.message.edit("Напоминание создано!")
+        await asyncio.sleep(1)
         await MissionController().reload()
 
     async def main(self):

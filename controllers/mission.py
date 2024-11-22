@@ -12,10 +12,10 @@ class MissionController:
     @property
     def today_missions(self) -> tuple[tuple[Notifications, ...], SendTime] | tuple[None, None]:
         today_missions = SendTime.select().where(
-            SendTime.is_used & (SendTime.send_time >= self.now.time()) & (
-                    (SendTime.consider_date & SendTime.send_date == self.now.date()) |
-                    (SendTime.weekday.between(0, 6) & SendTime.weekday == self.now.weekday()) |
-                    (~SendTime.consider_date & ~SendTime.weekday.between(0, 6))
+            SendTime.is_used & (SendTime.send_time > self.now.time()) & (
+                    (SendTime.consider_date & (SendTime.send_date == self.now.date())) |
+                    (SendTime.weekday.between(0, 6) & (SendTime.weekday == self.now.weekday())) |
+                    ((~SendTime.consider_date) & (~SendTime.weekday.between(0, 6)))
             )
         ).order_by(SendTime.send_time.desc())[:]
 
@@ -35,7 +35,7 @@ class MissionController:
             (~SendTime.is_used) & (SendTime.updated_at < datetime.now() - timedelta(days=period))
         ).execute()
 
-    def nearest_mission_for_current_user(self, user: BotUsers): # ToDo: Починить вывод ближайшей миссии (Если работает--оставить как есть)
+    def nearest_mission_for_current_user(self, user: BotUsers):
         nearest = Notifications.select().where(
             (Notifications.created_by == user)
         )
@@ -56,7 +56,7 @@ class MissionController:
     async def run(self):  # ToDo: Протестировать
         if IsWaiting.select()[:]:
             print("Already waiting")
-            pass
+            return
 
         IsWaiting.create()
         missions, send_time = self.today_missions
@@ -94,5 +94,5 @@ class MissionController:
                 cannot_send = e
                 print("some error while sending", cannot_send)
 
-        await asyncio.sleep(1.1)
+        await asyncio.sleep(1.5)  # Чтобы одно и то же уведомление не отправлялось на протяжении всей секунды (10-20 раз)
         await self.run()
