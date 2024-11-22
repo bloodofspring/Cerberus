@@ -1,3 +1,13 @@
+import asyncio
+from datetime import datetime, timedelta
+
+from pyrogram.handlers import CallbackQueryHandler
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+from client_handlers.base import *
+from database.models import ChatToSend, SendTime, CreatedTimePoints, Notifications
+
+
 class GetChatToSend(BaseHandler):
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("CHAT"))
@@ -86,14 +96,16 @@ class GetChatToSend(BaseHandler):
 
 
 class ChatRegister(BaseHandler):
-    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip("-").isalnum())
+    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip(
+        "-").isalnum())
 
     async def func(self):
         try:
             chat = await self.client.get_chat(int(self.request.text))
         except (ValueError, TypeError, Exception):
             await self.request.reply("Чата с таким ID  не существует или бот не добавлен в него!")
-            await self.request.reply("Пожалуйста, добавьте бота в чат, назначьте его администратором и проверьте корректность ID")
+            await self.request.reply(
+                "Пожалуйста, добавьте бота в чат, назначьте его администратором и проверьте корректность ID")
             return
 
         keyboard = InlineKeyboardMarkup([[
@@ -173,7 +185,8 @@ class GetDateTime(BaseHandler):
         self.reg_date = bool(int(self.request.data.split("-")[8]))
         self.del_after_exec = bool(int(self.request.data.split("-")[9]))
 
-    def to_call_data(self, time_delta: timedelta = timedelta(), reg_weekday=None, reg_date=None, del_after_exec=None) -> str:
+    def to_call_data(self, time_delta: timedelta = timedelta(), reg_weekday=None, reg_date=None,
+                     del_after_exec=None) -> str:
         call_data = "CHANGE-"
         call_data += str(self.datetime + time_delta).replace(' ', '-').replace(':', '-')
         call_data += (
