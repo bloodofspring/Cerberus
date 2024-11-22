@@ -169,14 +169,18 @@ class GetDateTime(BaseHandler):
     def date_keyboard(self) -> InlineKeyboardMarkup:
         keyboard = InlineKeyboardMarkup([
             [
+                InlineKeyboardButton("<<5", callback_data=self.to_call_data(time_delta=timedelta(days=-5))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(days=-1))),
                 InlineKeyboardButton("День: {}".format(self.datetime.day), callback_data="none"),
-                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=1)))
+                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=1))),
+                InlineKeyboardButton("5>>", callback_data=self.to_call_data(time_delta=timedelta(days=5))),
             ] if self.reg_date else [],
             [
+                InlineKeyboardButton("<<3", callback_data=self.to_call_data(time_delta=timedelta(days=-90))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(days=-30))),
-                InlineKeyboardButton("Месяц: {}".format(self.datetime.month), callback_data="none"),
-                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=30)))
+                InlineKeyboardButton("Мес: {}".format(self.datetime.month), callback_data="none"),
+                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=30))),
+                InlineKeyboardButton("3>>", callback_data=self.to_call_data(time_delta=timedelta(days=90)))
             ] if self.reg_date else [],
             [
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(days=-365))),
@@ -188,19 +192,26 @@ class GetDateTime(BaseHandler):
                 callback_data=self.to_call_data(reg_date=not self.reg_date)
             )],
             [
+                InlineKeyboardButton("<<5", callback_data=self.to_call_data(time_delta=timedelta(hours=-5))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(hours=-1))),
                 InlineKeyboardButton("Час: {}".format(self.datetime.hour), callback_data="none"),
-                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(hours=1)))
+                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(hours=1))),
+                InlineKeyboardButton("5>>", callback_data=self.to_call_data(time_delta=timedelta(hours=5)))
             ],
             [
+                InlineKeyboardButton("<<10", callback_data=self.to_call_data(time_delta=timedelta(minutes=-10))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(minutes=-1))),
-                InlineKeyboardButton("минута: {}".format(self.datetime.minute), callback_data="none"),
-                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(minutes=1)))
+                InlineKeyboardButton("Мин: {}".format(self.datetime.minute), callback_data="none"),
+                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(minutes=1))),
+                InlineKeyboardButton("10>>", callback_data=self.to_call_data(time_delta=timedelta(minutes=10)))
+
             ],
             [
+                InlineKeyboardButton("<<10", callback_data=self.to_call_data(time_delta=timedelta(seconds=-10))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(seconds=-1))),
-                InlineKeyboardButton("Секунда: {}".format(self.datetime.second), callback_data="none"),
-                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(seconds=1)))
+                InlineKeyboardButton("Сек: {}".format(self.datetime.second), callback_data="none"),
+                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(seconds=1))),
+                InlineKeyboardButton("10>>", callback_data=self.to_call_data(time_delta=timedelta(seconds=10)))
             ],
             [InlineKeyboardButton(
                 "Не учитывать день недели" if self.reg_weekday else "Учитывать день недели",
@@ -259,4 +270,19 @@ class GetDateTime(BaseHandler):
             await self.submit()
             return
         self.set_values()
-        await self.request.message.edit("Выберите время отправки", reply_markup=self.date_keyboard)
+        await self.request.message.edit(
+            (
+                "Выберите время отправки\n"
+                "Текущее:\n"
+                "Дата: {}/{}/{}\n"
+                "Время: {}:{}:{}\n".format(
+                    str(self.datetime.day).rjust(2, "0"),
+                    str(self.datetime.month).rjust(2, "0"),
+                    str(self.datetime.year).rjust(4, "0"),
+                    str(self.datetime.hour).rjust(2, "0"),
+                    str(self.datetime.minute).rjust(2, "0"),
+                    str(self.datetime.second).rjust(2, "0")
+                )
+            ),
+            reply_markup=self.date_keyboard
+        )
