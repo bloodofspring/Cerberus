@@ -2,7 +2,7 @@ from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
-from database.models import Notifications
+from database.models import Notifications, SendTime
 
 
 class RmMission(BaseHandler):
@@ -11,10 +11,9 @@ class RmMission(BaseHandler):
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("rm_mission"))
 
     async def func(self):
-        _, id_ = self.request.data.split()
-        id_ = int(id_)
-
-        Notifications.delete_by_id(id_)
+        to_delete: Notifications = Notifications.get_by_id(int(self.request.data.split()[1]))
+        SendTime.delete_by_id(to_delete.send_at)
+        Notifications.delete_by_id(to_delete.id)
 
         await self.request.message.edit(
             "Напоминание удалено!",

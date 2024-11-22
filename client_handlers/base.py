@@ -46,8 +46,8 @@ class BaseHandler:
             await self.func()
         except Exception as e:
             print(
-                Fore.YELLOW + f"[{datetime.now()}][!]>>-||--> " +
-                Fore.RED + f"Ошибка в {self.__name__}! [type={type(e)}; text={str(e)}]"
+                Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                Fore.LIGHTRED_EX + f"Ошибка в {self.__name__}! [type={type(e)}; text={str(e)}]"
             )
 
     @property
