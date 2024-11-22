@@ -48,12 +48,19 @@ class MissionController:
 
         return result[0]
 
+    async def reload(self):
+        print("Reloading...")
+        IsWaiting.truncate_table()
+        await self.run()
+
     async def run(self):  # ToDo: Протестировать
         if IsWaiting.select()[:]:
+            print("Already waiting")
             pass
 
         IsWaiting.create()
         missions, send_time = self.today_missions
+        print(missions, send_time)
         now = datetime.now()
 
         if missions is None or send_time is None:
@@ -64,19 +71,28 @@ class MissionController:
                 hour=send_time.hour, minute=send_time.minute, second=send_time.second,
             )
 
-        await asyncio.sleep((now - time_to).seconds)
-        await self.execute(missions)
+        seconds = (time_to - now).seconds
+        print(f"{now} to {time_to}")
+        print(f"Sleep {seconds}...")
+        await asyncio.sleep(seconds)
+        await self.execute_missions(missions)
 
-    async def execute(self, missions: tuple[Notifications] | None):
+    async def execute_missions(self, missions: tuple[Notifications] | None):
+        IsWaiting.truncate_table()
         if missions is None:
+            print("Nothing to send.")
             await self.run()
 
             return
+
+        print(f"{len(missions)} to send.")
 
         for m in missions:
             try:
                 await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
             except Exception as e:
                 cannot_send = e
+                print("some error while sending", cannot_send)
 
+        await asyncio.sleep(1.1)
         await self.run()

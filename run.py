@@ -1,7 +1,7 @@
 """Run this file to start instances"""
 from datetime import datetime
 
-from colorama import Fore
+from colorama import Fore, init
 
 from client_handlers.activate import add_handlers
 from database.create import create_tables
@@ -24,6 +24,7 @@ def by_alien() -> None:
 
 
 def run_bot() -> None:
+    init(autoreset=True)
     add_handlers()
     create_tables()
     by_alien()

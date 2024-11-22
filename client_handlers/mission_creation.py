@@ -5,6 +5,7 @@ from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
+from controllers import MissionController
 from database.models import ChatToSend, SendTime, CreatedTimePoints, Notifications
 
 
@@ -75,6 +76,7 @@ class GetChatToSend(BaseHandler):
         )
         CreatedTimePoints.delete_by_id(send_time.id)
         await self.request.message.edit("Напоминание создано!")
+        await MissionController().reload()
 
     async def main(self):
         await self.request.message.edit(
