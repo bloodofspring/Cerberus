@@ -9,7 +9,7 @@ from util import render_notification
 
 
 class MissionsList(BaseHandler):
-    FILTER = regex("Мои напоминания")
+    FILTER = create(lambda _, __, q: q and q.data and q.data == "missions_list")
 
     @property
     def keyboard(self):  # , page: int
@@ -47,7 +47,7 @@ class Mission(BaseHandler):
 
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("Удалить напоминание", callback_data=f"rm_mission {id_}"),
-            InlineKeyboardButton("К напоминаниям", callback_data="notifications_main"),
+            InlineKeyboardButton("К напоминаниям", callback_data="missions_list"),
         ]])
 
         await self.request.message.edit(

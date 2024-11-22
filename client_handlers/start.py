@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
@@ -9,9 +11,10 @@ class StartCmd(BaseHandler):
     FILTER = command("start")
 
     async def func(self):
+        create_mission_call_data = f"CHANGE-{str(datetime.now()).replace(' ', '-').replace(':', '-')[:-7]}-1-1-0"
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("Добавить напоминание", callback_data=""),
-            InlineKeyboardButton("Мои напоминания", callback_data=""),
+            InlineKeyboardButton("Добавить напоминание", callback_data=create_mission_call_data),
+            InlineKeyboardButton("Мои напоминания", callback_data="missions_list"),
         ]])
         MissionController.delete_unused_time_points()
         n_for_cur_user = MissionController().nearest_mission_for_current_user(user=self.db_user)

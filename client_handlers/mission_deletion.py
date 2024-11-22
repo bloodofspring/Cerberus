@@ -18,6 +18,6 @@ class RmMission(BaseHandler):
         await self.request.message.edit(
             "Напоминание удалено!",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("К напоминаниям", callback_data="notifications_main")
+                InlineKeyboardButton("К напоминаниям", callback_data="missions_list")
             ]])
         )
