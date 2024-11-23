@@ -1,2 +1,2 @@
-# Arkudanus
+# Cerberus
 Бот для напоминаний

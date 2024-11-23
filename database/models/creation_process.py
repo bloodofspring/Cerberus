@@ -1,7 +1,7 @@
 from peewee import ForeignKeyField, CharField, IntegerField
 
 from database.models.base import BaseModel
-from database.models.notifications import SendTime, ChatToSend
+from database.models.notifications import SendTime
 from database.models.users import BotUsers
 
 

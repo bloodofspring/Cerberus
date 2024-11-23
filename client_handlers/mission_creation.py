@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
 from controllers import MissionController
-from database.models import ChatToSend, SendTime, CreationSession, Notifications
+from database.models import ChatToSend, SendTime, CreationSession
 from util import create_mission, get_last_session
 
 
@@ -53,7 +53,9 @@ class NotificationTextRegister(BaseHandler):
         CreationSession.save(session)
 
         create_mission(session=session)
-        await self.request.reply("Напоминание создано!")
+        await self.request.reply("Напоминание создано!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
+            "Список напоминаний", callback_data="missions_list"
+        )]]))
         await asyncio.sleep(1)
         await MissionController().reload()
 
@@ -79,8 +81,8 @@ class GetChatToSend(BaseHandler):
                 continue
 
             keyboard.inline_keyboard.append([InlineKeyboardButton(
-                chat.title if chat.title is not None else f"Личный чат пользователя @{self.request.from_user.username}",
-                callback_data=f"CHAT-{c.tg_id}"
+                chat.title if chat.title is not None else f"Чат c @{chat.username}",
+                callback_data=f"CHAT-{c.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
             )])
 
         keyboard.inline_keyboard.append([
@@ -154,8 +156,12 @@ class GetChatToSend(BaseHandler):
             case _ as c if c.startswith("CHAT-SAVE-"):
                 await self.save_chat(save=int(self.request.data[10]))
 
-            case _ as c if c.strip("CHAT-").isalnum():
-                await self.apply_chat(chat_id=int("-" + c.strip("CHAT-")))
+            case _ as c if c.strip("CHAT-PUBPRV").isalnum():
+                if c.split("-")[2] == "PUB":
+                    await self.apply_chat(chat_id=int("-" + c.strip("CHAT-PUB")))
+                    return
+
+                await self.apply_chat(chat_id=int(c.strip("CHAT-PRV")))
 
 
 class GetDateTime(BaseHandler):

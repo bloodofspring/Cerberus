@@ -3,52 +3,64 @@ from datetime import datetime, timedelta
 
 from colorama import Fore
 
-from database.models import SendTime, BotUsers, Notifications, IsWaiting
+from database.models import SendTime, BotUsers, Notifications, IsWaiting, CreationSession
 from instances import client
 
 
 class MissionController:
+    def __init__(self):
+        self.delete_unused_sessions()
+        self.delete_unused_time_points()
+
     @property
-    def today_missions(self) -> tuple[tuple[Notifications, ...], SendTime] | tuple[None, None]:
+    def today_missions_sql(self) -> tuple[SendTime, ...]:
         now = datetime.now()
-        today_missions = SendTime.select().where(
+        result = SendTime.select().where(
             SendTime.is_used & (SendTime.send_time > now.time()) & (
                     (SendTime.consider_date & (SendTime.send_date == now.date())) |
                     (SendTime.weekday.between(0, 6) & (SendTime.weekday == now.weekday())) |
                     ((~SendTime.consider_date) & (~SendTime.weekday.between(0, 6)))
             )
-        ).order_by(SendTime.send_time)[:]
+        ).order_by(SendTime.send_time)
+
+        return tuple(result)
+
+    @property
+    def today_missions(self) -> tuple[tuple[Notifications, ...], SendTime] | tuple[None, None]:
+        today_missions = self.today_missions_sql
 
         if not today_missions:
             return None, None
 
         nearest: SendTime = today_missions[0]
         nearest_operations: tuple[Notifications, ...] = tuple(map(
-            lambda t: t.oper[0], filter(lambda t: t.send_time == nearest.send_time, today_missions)
+            lambda t: t.operation[0], filter(lambda t: t.send_time == nearest.send_time, today_missions)
         ))
 
         return nearest_operations, nearest.send_time
 
     @staticmethod
-    def delete_unused_time_points(period=1):
+    def delete_unused_time_points(period: int = 1):
         SendTime.delete().where(
-            (~SendTime.is_used) & (SendTime.updated_at < datetime.now() - timedelta(days=period))
+            (~SendTime.is_used) & (SendTime.updated_at < (datetime.now() - timedelta(days=period)))
         ).execute()
 
     @staticmethod
-    def nearest_mission_for_current_user(user: BotUsers):
-        now = datetime.now()
-        nearest = Notifications.select().where(
-            (Notifications.created_by == user)
-        )
-        result = tuple(sorted(nearest, key=lambda t: (
-            t.send_at.send_time >= now.time(), t.send_at.send_time,
-        ), reverse=True))
+    def delete_unused_sessions(period: int = 1):
+        CreationSession.delete().where(
+            CreationSession.updated_at < (datetime.now() - timedelta(days=period))
+        ).execute()
+
+    def today_missions_for_user(self, user: BotUsers):
+        result: tuple[SendTime, ...] = tuple(filter(
+            lambda t: t.operation[0].created_by == user,
+            self.today_missions_sql,
+        ))
 
         if not result:
             return None
 
-        return result[0]
+        return tuple(map(lambda t: t.operation[0], result))[0]
 
     async def reload(self):
         print(
