@@ -48,12 +48,12 @@ class Mission(BaseHandler):
         _, id_ = self.request.data.split()
         id_ = int(id_)
 
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("Удалить напоминание", callback_data=f"rm_mission {id_}"),
-            InlineKeyboardButton("К напоминаниям", callback_data="missions_list"),
-        ]])
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Удалить напоминание", callback_data=f"rm_mission {id_}")],
+            [InlineKeyboardButton("К напоминаниям", callback_data="missions_list")],
+        ])
 
         await self.request.message.edit(
-            render_notification(Notifications.get_by_id(id_)),
+            await render_notification(Notifications.get_by_id(id_)),
             reply_markup=keyboard,
         )
