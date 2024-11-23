@@ -15,6 +15,6 @@ class SendTime(BaseModel):
 
 class Notifications(BaseModel):
     text = CharField()
-    send_at = ForeignKeyField(SendTime, backref="oper")
-    chat_to_send = ForeignKeyField(ChatToSend, backref="oper")
+    send_at = ForeignKeyField(SendTime, backref="operation")
+    chat_to_send = ForeignKeyField(ChatToSend, backref="operation")
     created_by = ForeignKeyField(BotUsers, backref="notifications")

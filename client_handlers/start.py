@@ -17,13 +17,12 @@ class StartCmd(BaseHandler):
             InlineKeyboardButton("Добавить напоминание", callback_data=create_mission_call_data),
             InlineKeyboardButton("Мои напоминания", callback_data="missions_list"),
         ]])
-        MissionController.delete_unused_time_points()
-        n_for_cur_user = MissionController().nearest_mission_for_current_user(user=self.db_user)
+        n_for_cur_user = MissionController().today_missions_for_user(user=self.db_user)
 
         await self.request.reply(
             (
-                f"Ближайшее напоминание:\n"
-                f"{'У вас не добавлено напоминаний' if n_for_cur_user is None else render_notification(n_for_cur_user)}"
+                f"Ближайшее напоминание на сегодня:\n"
+                f"{'У вас не запланировано напоминаний на сегодня' if n_for_cur_user is None else render_notification(n_for_cur_user)}"
             ),
             reply_markup=keyboard
         )

@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
 from controllers import MissionController
-from database.models import ChatToSend, SendTime, CreationSession, Notifications
+from database.models import ChatToSend, SendTime, CreationSession
 from util import create_mission, get_last_session
 
 
