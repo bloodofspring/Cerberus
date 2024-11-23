@@ -1,7 +1,10 @@
+import asyncio
+
 from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
+from controllers import MissionController
 from database.models import Notifications, SendTime
 
 
@@ -21,3 +24,5 @@ class RmMission(BaseHandler):
                 InlineKeyboardButton("К напоминаниям", callback_data="missions_list")
             ]])
         )
+        await asyncio.sleep(1)
+        await MissionController().reload()
