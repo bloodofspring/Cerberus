@@ -1,3 +1,4 @@
+from client_handlers.exit import ExitCmd
 from client_handlers.mission_creation import GetChatToSend, ChatRegister, GetDateTime, NotificationTextRegister
 from client_handlers.mission_deletion import RmMission
 from client_handlers.mission_list import MissionsList, Mission
@@ -6,6 +7,7 @@ from instances import client
 
 active_handlers = [
     StartCmd,
+    ExitCmd,
 
     MissionsList,
     Mission,
