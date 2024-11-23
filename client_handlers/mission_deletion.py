@@ -15,7 +15,7 @@ class RmMission(BaseHandler):
 
     async def func(self):
         to_delete: Notifications = Notifications.get_by_id(int(self.request.data.split()[1]))
-        SendTime.delete_by_id(to_delete.send_at)
+        SendTime.delete_by_id(to_delete.send_at.id)
         Notifications.delete_by_id(to_delete.id)
 
         await self.request.message.edit(
