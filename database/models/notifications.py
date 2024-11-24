@@ -18,3 +18,4 @@ class Notifications(BaseModel):
     send_at = ForeignKeyField(SendTime, backref="operation")
     chat_to_send = ForeignKeyField(ChatToSend, backref="operation")
     created_by = ForeignKeyField(BotUsers, backref="notifications")
+    is_sent = BooleanField()

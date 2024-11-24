@@ -104,10 +104,8 @@ class MissionController:
     async def execute_missions(self, missions: tuple[Notifications, ...] | None):
         IsWaiting.truncate_table()
         if missions is None:
-            print(
-                Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-                Fore.GREEN + f"Нечего отправить! Обновляюсь.."
-            )
+            print(Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " + Fore.GREEN + f"Нечего отправить! Обновляюсь..")
+            Notifications.update({Notifications.is_sent: False}).where(Notifications.is_sent).execute()
             await self.run()
 
             return
@@ -120,6 +118,12 @@ class MissionController:
         for m in missions:
             try:
                 Notifications.get_by_id(m.id)
+                if m.is_sent:
+                    continue
+
+                m.is_sent = True
+                Notifications.save(m)
+
                 await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
 
                 if m.send_at.consider_date or m.send_at.delete_after_execution:
