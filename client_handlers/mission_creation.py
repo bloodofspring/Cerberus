@@ -239,7 +239,7 @@ class GetDateTime(BaseHandler):
             )],
             [
                 InlineKeyboardButton("Готово", callback_data="CHANGE-SUBMIT"),
-                InlineKeyboardButton("Отмена", callback_data="missions_list")
+                InlineKeyboardButton("Отмена", callback_data="main")
             ],
         ])
 

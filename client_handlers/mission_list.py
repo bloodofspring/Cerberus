@@ -28,6 +28,10 @@ class MissionsList(BaseHandler):
             "+ Добавить напоминание",
             callback_data=f"CHANGE-{str(datetime.now()).replace(' ', '-').replace(':', '-')[:-7]}-1-1-0"
         )])
+        keyboard.inline_keyboard.append([InlineKeyboardButton(
+            "<---<<< На главную",
+            callback_data="main"
+        )])
 
         return keyboard
 
