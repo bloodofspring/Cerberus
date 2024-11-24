@@ -77,7 +77,7 @@ class MissionController:
         if not today_missions:
             print(
                 Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-                Fore.MAGENTA + "Next mission in midnight"
+                Fore.GREEN + "Next mission in midnight"
             )
             schedule.every(1).day.at("00:00").do(self.send, tuple()).tag("send_mission")
             return
@@ -85,7 +85,7 @@ class MissionController:
         nearest = today_missions[0]
         print(
             Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.MAGENTA + f"Next mission at {nearest.send_time}"
+            Fore.GREEN + f"Next mission at {nearest.send_time}"
         )
         schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.send, tuple(map(lambda t: t.operation[0], filter(
             lambda x: x.send_time == nearest.send_time, today_missions
