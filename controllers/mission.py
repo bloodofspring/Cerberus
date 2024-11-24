@@ -56,7 +56,10 @@ class MissionController:
         while True:
             await schedule.run_pending()
             if not schedule.default_scheduler.jobs:
-                print("Finishing pending...")
+                print(
+                    Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                    Fore.LIGHTRED_EX + "Finishing pending..."
+                )
                 break
             await asyncio.sleep(10)
 
@@ -64,17 +67,26 @@ class MissionController:
         await self.update()
 
     async def update(self):
-        print("Updating...")
+        print(
+            Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+            Fore.LIGHTMAGENTA_EX + "Updating..."
+        )
         schedule.clear("send_mission")
         today_missions = self.today_missions_sql
 
         if not today_missions:
-            print("Next mission in midnight")
+            print(
+                Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                Fore.LIGHTMAGENTA_EX + "Next mission in midnight"
+            )
             schedule.every(1).day.at("00:00").do(self.send, tuple()).tag("send_mission")
             return
 
         nearest = today_missions[0]
-        print(f"Next mission at {nearest.send_time}")
+        print(
+            Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+            Fore.LIGHTMAGENTA_EX + f"Next mission at {nearest.send_time}"
+        )
         schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.send, tuple(map(lambda t: t.operation[0], filter(
             lambda x: x.send_time == nearest.send_time, today_missions
         )))).tag("send_mission")
