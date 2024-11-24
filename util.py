@@ -3,7 +3,7 @@ from datetime import time
 from database.models import Notifications, SendTime, CreationSession, ChatToSend, BotUsers
 from instances import client
 
-weekdays = {
+WEEKDAYS = {
     0: "в понедельник",
     1: "во вторник",
     2: "в среду",
@@ -24,7 +24,7 @@ async def render_notification(notification: Notifications) -> str:
     if send_at.consider_date:
         t = f"{send_at.send_date} {remove_microsecond(send_at.send_time)}".capitalize()
     elif 0 <= send_at.weekday <= 6:
-        t = f"{weekdays[send_at.weekday]}, {remove_microsecond(send_at.send_time)}".capitalize()
+        t = f"{WEEKDAYS[send_at.weekday]}, {remove_microsecond(send_at.send_time)}".capitalize()
     else:
         t = f"каждый день, в {remove_microsecond(send_at.send_time)}".capitalize()
 

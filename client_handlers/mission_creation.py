@@ -7,7 +7,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from client_handlers.base import *
 from controllers import MissionController
 from database.models import ChatToSend, SendTime, CreationSession
-from util import create_mission, get_last_session
+from util import create_mission, get_last_session, WEEKDAYS
 
 
 class ChatRegister(BaseHandler):
@@ -171,10 +171,7 @@ class GetDateTime(BaseHandler):
 
     def __init__(self):
         super().__init__()
-        self.datetime = datetime(
-            year=4444, month=6, day=5,
-            hour=4, minute=44, second=44,
-        )
+        self.datetime = datetime.now()
         self.reg_weekday = False
         self.reg_date = False
         self.del_after_exec = False
@@ -206,6 +203,15 @@ class GetDateTime(BaseHandler):
                 callback_data=self.to_call_data(reg_date=not self.reg_date)
             )],
             [
+                InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(days=-1))),
+                InlineKeyboardButton(WEEKDAYS[self.datetime.weekday()].capitalize(), callback_data="none"),
+                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=1))),
+            ] if self.reg_weekday else [],
+            [InlineKeyboardButton(
+                "Не учитывать день недели" if self.reg_weekday else "Учитывать день недели",
+                callback_data=self.to_call_data(reg_weekday=not self.reg_weekday)
+            )],
+            [
                 InlineKeyboardButton("<<5", callback_data=self.to_call_data(time_delta=timedelta(hours=-5))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(hours=-1))),
                 InlineKeyboardButton("Час: {}".format(self.datetime.hour), callback_data="none"),
@@ -228,28 +234,28 @@ class GetDateTime(BaseHandler):
                 InlineKeyboardButton("10>>", callback_data=self.to_call_data(time_delta=timedelta(seconds=10)))
             ],
             [InlineKeyboardButton(
-                "Не учитывать день недели" if self.reg_weekday else "Учитывать день недели",
-                callback_data=self.to_call_data(reg_weekday=not self.reg_weekday)
-            )],
-            [InlineKeyboardButton(
                 "Не удалять после исполнения" if self.del_after_exec else "Удалить после исполнения",
                 callback_data=self.to_call_data(del_after_exec=not self.del_after_exec)
             )],
-            [InlineKeyboardButton("Готово", callback_data="CHANGE-SUBMIT")],
+            [
+                InlineKeyboardButton("Готово", callback_data="CHANGE-SUBMIT"),
+                InlineKeyboardButton("Отмена", callback_data="missions_list")
+            ],
         ])
 
         return keyboard
 
-    def set_values(self):  # call data format "CHANGE-YYYY-MM-DD-HH-MM-SS-1-0-1" (reg_weekday, reg_date, del_after_exec)
-        self.datetime = datetime(*map(int, self.request.data.split("-")[1:7]))
+    def set_values(self):
+        """call data format "CHANGE-YYYY-MM-DD-HH-MM-SS-1-0-1" (reg_weekday, reg_date, del_after_exec)"""
+        self.datetime = datetime(*map(int, self.request.data.split("-")[1:7]), microsecond=datetime.now().microsecond)
         self.reg_weekday = bool(int(self.request.data.split("-")[7]))
         self.reg_date = bool(int(self.request.data.split("-")[8]))
         self.del_after_exec = bool(int(self.request.data.split("-")[9]))
 
-    def to_call_data(self, time_delta: timedelta = timedelta(), reg_weekday=None, reg_date=None,
-                     del_after_exec=None) -> str:
+    def to_call_data(self, time_delta: timedelta = timedelta(), reg_weekday=None, reg_date=None, del_after_exec=None) -> str:
+        """call data format "CHANGE-YYYY-MM-DD-HH-MM-SS-1-0-1" (reg_weekday, reg_date, del_after_exec)"""
         call_data = "CHANGE-"
-        call_data += str(self.datetime + time_delta).replace(' ', '-').replace(':', '-')
+        call_data += str(self.datetime + time_delta).replace(' ', '-').replace(':', '-')[:-7]
         call_data += (
             f"-{int(self.reg_weekday) if reg_weekday is None else int(reg_weekday)}"
             f"-{int(self.reg_date) if reg_date is None else int(reg_date)}-"
@@ -259,11 +265,6 @@ class GetDateTime(BaseHandler):
         return call_data
 
     async def submit(self):
-        self.datetime = datetime(
-            year=self.datetime.year, month=self.datetime.month, day=self.datetime.day,
-            hour=self.datetime.hour, minute=self.datetime.minute, second=self.datetime.second,
-            microsecond=datetime.now().microsecond
-        )
         created_send_time = SendTime.create(
             send_date=self.datetime.date(),
             send_time=self.datetime.time(),
@@ -284,24 +285,42 @@ class GetDateTime(BaseHandler):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Дальше", callback_data="CHAT")]])
         )
 
-    async def func(self):
-        if self.request.data == "CHANGE-SUBMIT":
-            await self.submit()
-            return
-        self.set_values()
-        await self.request.message.edit(
-            (
-                "Выберите время отправки\n"
-                "Текущее:\n"
-                "Дата: {}/{}/{}\n"
-                "Время: {}:{}:{}\n".format(
-                    str(self.datetime.day).rjust(2, "0"),
-                    str(self.datetime.month).rjust(2, "0"),
-                    str(self.datetime.year).rjust(4, "0"),
-                    str(self.datetime.hour).rjust(2, "0"),
-                    str(self.datetime.minute).rjust(2, "0"),
-                    str(self.datetime.second).rjust(2, "0")
-                )
-            ),
-            reply_markup=self.date_keyboard
+    def render_message(self) -> str:
+        text = "**Выберите время отправки:**\n\n"
+
+        if self.reg_date:
+            text += "**Дата:** {}/{}/{}\n".format(
+                str(self.datetime.day).rjust(2, "0"),
+                str(self.datetime.month).rjust(2, "0"),
+                str(self.datetime.year).rjust(4, "0"),
+            )
+
+        text += "**Время:** {}:{}:{}\n".format(
+            str(self.datetime.hour).rjust(2, "0"),
+            str(self.datetime.minute).rjust(2, "0"),
+            str(self.datetime.second).rjust(2, "0")
         )
+
+        if self.reg_weekday:
+            text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS[self.datetime.weekday()])
+
+        if self.del_after_exec or self.reg_date:
+            text += "будет удалено после исполнения " + ("(Отправка по дате)" if self.reg_date else "")
+        elif not self.reg_weekday:
+            text += "будет отправляться каждый день"
+        else:
+            text = text.strip(" и")
+
+        text = text.replace("и будет", "и")
+
+        return text
+
+
+    async def func(self):
+        match self.request.data:
+            case "CHANGE-SUBMIT":
+                await self.submit()
+
+            case _:
+                self.set_values()
+                await self.request.message.edit(self.render_message(), reply_markup=self.date_keyboard)
