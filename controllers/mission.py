@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 from colorama import Fore
+from peewee import DoesNotExist
 
 from database.models import SendTime, BotUsers, Notifications, IsWaiting, CreationSession
 from instances import client
@@ -83,8 +84,7 @@ class MissionController:
         now = datetime.now()
 
         if missions is None or send_time is None:
-            time_to = datetime(day=now.day + 1, month=now.month, year=now.year, hour=0, minute=0, second=0,
-                               microsecond=0)
+            time_to = datetime(day=now.day + 1, month=now.month, year=now.year, hour=0, minute=0, second=0, microsecond=0)
         else:
             time_to = datetime(
                 day=now.day, month=now.month, year=now.year,
@@ -119,10 +119,16 @@ class MissionController:
 
         for m in missions:
             try:
+                Notifications.get_by_id(m.id)
                 await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
 
                 if m.send_at.consider_date or m.send_at.delete_after_execution:
+                    SendTime.delete_by_id(m.send_at.id)
                     Notifications.delete_by_id(m.id)
+
+            except DoesNotExist:
+                pass
+
             except Exception as e:
                 cannot_send = e
                 print(Fore.RED + str(cannot_send))
