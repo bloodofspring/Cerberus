@@ -47,15 +47,12 @@ class MissionController:
 
     @staticmethod
     def delete_unused_sessions(period: int = 1):
-        CreationSession.delete().where(
-            CreationSession.updated_at < (datetime.now() - timedelta(days=period))
-        ).execute()
+        CreationSession.delete().where(CreationSession.updated_at < (datetime.now() - timedelta(days=period))).execute()
 
     def today_missions_for_user(self, user: BotUsers):
-        result: tuple[SendTime, ...] = tuple(filter(
-            lambda t: t.operation[0].created_by == user,
-            self.today_missions_sql,
-        ))
+        result: tuple[SendTime, ...] = tuple(
+            filter(lambda t: t.operation[0].created_by == user, self.today_missions_sql)
+        )
 
         if not result:
             return None
@@ -130,4 +127,5 @@ class MissionController:
                 cannot_send = e
                 print(Fore.RED + str(cannot_send))
 
+        await asyncio.sleep(1)
         await self.run()
