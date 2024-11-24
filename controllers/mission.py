@@ -57,7 +57,7 @@ class MissionController:
             await schedule.run_pending()
             if not schedule.default_scheduler.jobs:
                 print(
-                    Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                    Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][#]>>-||--> " +
                     Fore.LIGHTRED_EX + "Finishing pending..."
                 )
                 break
@@ -76,7 +76,7 @@ class MissionController:
 
         if not today_missions:
             print(
-                Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][#]>>-||--> " +
                 Fore.LIGHTMAGENTA_EX + "Next mission in midnight"
             )
             schedule.every(1).day.at("00:00").do(self.send, tuple()).tag("send_mission")
@@ -84,7 +84,7 @@ class MissionController:
 
         nearest = today_missions[0]
         print(
-            Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+            Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][#]>>-||--> " +
             Fore.LIGHTMAGENTA_EX + f"Next mission at {nearest.send_time}"
         )
         schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.send, tuple(map(lambda t: t.operation[0], filter(
@@ -105,7 +105,6 @@ class MissionController:
                     Notifications.delete_by_id(notification.id)
 
             except Exception as e:
-                cannot_send = e
-                print(Fore.RED + str(cannot_send))
+                print(Fore.RED + str(e))
 
         schedule.clear("send_mission")
