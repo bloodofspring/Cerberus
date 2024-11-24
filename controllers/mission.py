@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, time
 from colorama import Fore
 from peewee import DoesNotExist
 
-from database.models import SendTime, BotUsers, Notifications, SendSessions, CreationSession, NotificationToSend
+from database.models import SendTime, BotUsers, Notifications, SendSessions, CreationSession, NotificationQueue
 from instances import client
 from util import MIDNIGHT
 
@@ -18,7 +18,7 @@ class MissionController:
     def today_missions_sql(self) -> tuple[SendTime, ...]:
         now = datetime.now()
         result = SendTime.select().where(
-            SendTime.is_used & (SendTime.send_time > now.time()) & (
+            (SendTime.send_time > now.time()) & (
                     (SendTime.consider_date & (SendTime.send_date == now.date())) |
                     (SendTime.weekday.between(0, 6) & (SendTime.weekday == now.weekday())) |
                     ((~SendTime.consider_date) & (~SendTime.weekday.between(0, 6)))
@@ -29,9 +29,7 @@ class MissionController:
 
     @staticmethod
     def delete_unused_time_points(period: int = 1):
-        SendTime.delete().where(
-            (~SendTime.is_used) & (SendTime.updated_at < (datetime.now() - timedelta(days=period)))
-        ).execute()
+        pass
 
     @staticmethod
     def delete_unused_creation_sessions(period: int = 1):
@@ -55,19 +53,19 @@ class MissionController:
 
     def add_today_missions(self):
         for mission in map(lambda t: t.operation[0], self.today_missions_sql):
-            if mission.is_in_session_plan:
-                print(f"{mission} already in session plan")
-                continue
+            # if mission.is_in_session_plan:
+            #     print(f"{mission} already in session plan")
+            #     continue
 
-            mission.is_in_session_plan = True
-            Notifications.save(mission)
+            # mission.is_in_session_plan = True
+            # Notifications.save(mission)
 
             if not SendSessions.select().where(SendSessions.send_at == mission.send_at.send_time)[:]:
                 session = SendSessions.create(send_at=mission.send_at.send_time)
             else:
                 session = SendSessions.get(send_at=mission.send_at.send_time)
 
-            NotificationToSend.get_or_create(notification=mission, session=session)
+            NotificationQueue.get_or_create(notification=mission, session=session)
 
     def update(self):
         self.create_midnight_mission_if_not_exists()
@@ -134,11 +132,11 @@ class MissionController:
         for m in missions:
             try:
                 Notifications.get_by_id(m.id)
-                if m.is_in_session_plan:
-                    continue
+                # if m.is_in_session_plan:
+                #     continue
 
-                m.is_in_session_plan = True
-                Notifications.save(m)
+                # m.is_in_session_plan = True
+                # Notifications.save(m)
 
                 await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
 

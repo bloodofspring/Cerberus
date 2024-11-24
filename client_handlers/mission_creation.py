@@ -271,7 +271,6 @@ class GetDateTime(BaseHandler):
             consider_date=self.reg_date,
             weekday=self.datetime.weekday() if self.reg_weekday else -1,
             delete_after_execution=self.del_after_exec,
-            is_used=False,
         )
         CreationSession.create(
             user=self.db_user,

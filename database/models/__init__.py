@@ -1,7 +1,7 @@
 from database.models.creation_process import CreationSession
-from database.models.expectation import SendSessions, NotificationToSend
-from database.models.notifications import SendTime, Notifications
-from database.models.users import BotUsers, ChatToSend
+from database.models.send_process import SendSessions, NotificationQueue
+from database.models.notifications import SendTime, Notifications, ChatToSend
+from database.models.users import BotUsers
 
 active_models = [
     BotUsers,
@@ -12,5 +12,5 @@ active_models = [
     ChatToSend,
     SendTime,
     Notifications,
-    NotificationToSend,
+    NotificationQueue,
 ]

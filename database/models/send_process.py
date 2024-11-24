@@ -10,6 +10,6 @@ class SendSessions(BaseModel):
     delete_after_execution = BooleanField(default=True)
 
 
-class NotificationToSend(BaseModel):
+class NotificationQueue(BaseModel):
     notification = ForeignKeyField(Notifications, backref="queue")
     session = ForeignKeyField(SendSessions, backref="to_send")

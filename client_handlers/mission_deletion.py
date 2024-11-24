@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
 from controllers import MissionController
-from database.models import Notifications, SendTime, NotificationToSend
+from database.models import Notifications, SendTime, NotificationQueue
 
 
 class RmMission(BaseHandler):
