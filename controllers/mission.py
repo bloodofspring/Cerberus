@@ -1,3 +1,4 @@
+"""Плачущий призрак на пенсии"""
 import asyncio
 from datetime import datetime, timedelta
 
@@ -57,6 +58,7 @@ class MissionController:
             if not schedule.default_scheduler.jobs:
                 print("Finishing pending...")
                 break
+            await asyncio.sleep(10)
 
         await asyncio.sleep(0.5)
         await self.update()

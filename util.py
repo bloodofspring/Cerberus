@@ -12,7 +12,7 @@ WEEKDAYS = {
     5: "в субботу",
     6: "в воскресенье"
 }
-MIDNIGHT: time = time(hour=0, minute=0, second=0, microsecond=0)
+MIDNIGHT: time = time(hour=0, minute=0, second=0)
 
 
 def remove_microsecond(time_value: time) -> str:
