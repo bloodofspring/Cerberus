@@ -57,7 +57,7 @@ class NotificationTextRegister(BaseHandler):
             "Список напоминаний", callback_data="missions_list"
         )]]))
         await asyncio.sleep(1)
-        await MissionController().reload()
+        await MissionController().update()
 
 class GetChatToSend(BaseHandler):
     __name__ = "GetChatToSend"

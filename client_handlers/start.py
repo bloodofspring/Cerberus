@@ -54,4 +54,4 @@ class StartCmd(BaseHandler):
 
     async def func(self):
         await Main().execute(client=self.client, request=self.request)
-        await MissionController().run()
+        await MissionController().update()

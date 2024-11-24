@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 from colorama import Fore
 from peewee import DoesNotExist
 
-from database.models import SendTime, BotUsers, Notifications, SendQueue, CreationSession, NotificationGroups
+from database.models import SendTime, BotUsers, Notifications, CreationSession
+
+import aioschedule as schedule
+
 from instances import client
-from util import MIDNIGHT
 
 
 class MissionController:
@@ -23,13 +25,17 @@ class MissionController:
                     (SendTime.weekday.between(0, 6) & (SendTime.weekday == now.weekday())) |
                     ((~SendTime.consider_date) & (~SendTime.weekday.between(0, 6)))
             )
-        ).order_by(SendTime.send_time)
+        ).order_by(SendTime.send_time.desc())
 
         return tuple(result)
 
     @staticmethod
-    def delete_unused_time_points(period: int = 1):
-        pass
+    def delete_unused_time_points():
+        for st in SendTime.select():
+            try:
+                st.operation[0]
+            except (DoesNotExist, IndexError):
+                SendTime.delete_by_id(st.id)
 
     @staticmethod
     def delete_unused_creation_sessions(period: int = 1):
@@ -45,105 +51,47 @@ class MissionController:
 
         return tuple(map(lambda t: t.operation[0], result))[0]
 
-    @staticmethod
-    def create_midnight_mission_if_not_exists():
-        _, created = SendQueue.get_or_create(send_at=MIDNIGHT, delete_after_execution=True)
-        if created:
-            print("MC session created!")
-        
-    @staticmethod
-    def to_seconds(value: timedelta) -> float:
-        return value.days * 86400 + value.seconds + value.microseconds / 1000000
-    
-    @staticmethod
-    def get_mission(send_time: SendTime) -> Notifications | None:
-        try:
-            return send_time.operation[0]
-        except DoesNotExist:
-            SendTime.delete_by_id(send_time.id)
-            return
+    async def run_until_all_jobs_completed(self):
+        while True:
+            await schedule.run_pending()
+            if not schedule.default_scheduler.jobs:
+                print("Finishing pending...")
+                break
 
-    def update(self):
-        for ng in NotificationGroups.select():
-            try:
-                _ = ng.notification
-            except DoesNotExist:
-                if len(SendQueue.get_by_id(ng.session.id).to_send) == 1:
-                    SendQueue.delete_by_id(ng.session.id)
+        await asyncio.sleep(0.5)
+        await self.update()
 
-                NotificationGroups.delete_by_id(ng.id)
+    async def update(self):
+        print("Updating...")
+        schedule.clear("send_mission")
+        today_missions = self.today_missions_sql
 
-        for st in self.today_missions_sql:
-            mission = self.get_mission(send_time=st)
-
-            if mission is None:
-                continue
-
-            if NotificationGroups.select().where(NotificationGroups.notification == mission)[:]:
-                continue
-
-            session, _ = SendQueue.get_or_create(send_at=st.send_time)
-            NotificationGroups.create(notification=mission, session=session)
-
-    @property
-    def nearest_send_session_sql(self) -> SendQueue | None:
-        if not SendQueue.select()[:]:
-            self.update()
-            return
-
-        missions = SendQueue.select().where(~SendQueue.executing).order_by(SendQueue.send_at.desc())[:]
-
-        if not missions:
+        if not today_missions:
             print("Next mission in midnight")
+            schedule.every(1).day.at("00:00").do(self.send, tuple()).tag("send_mission")
             return
 
-        return missions[0]
-  
-    async def run(self):
-        nearest = self.nearest_send_session_sql
-        if nearest is None:
-            return
+        nearest = today_missions[0]
+        print(f"Next mission at {nearest.send_time}")
+        schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.send, tuple(map(lambda t: t.operation[0], filter(
+            lambda x: x.send_time == nearest.send_time, today_missions
+        )))).tag("send_mission")
 
-        nearest.executing = True
-        SendQueue.save(nearest)
-        
-        now_time = datetime.now()
-        time_to = datetime(
-            day=now_time.day, month=now_time.month, year=now_time.year,
-            hour=nearest.send_at.hour,
-            minute=nearest.send_at.minute,
-            second=nearest.send_at.second,
-            microsecond=nearest.send_at.microsecond
-        )
+        if len(schedule.default_scheduler.jobs) == 1:
+            await self.run_until_all_jobs_completed()
 
-        delta = time_to - now_time
-        seconds = self.to_seconds(delta)
-
-        print(
-            Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Ожидание... [period=({now_time} -> {time_to},); delta={delta}; seconds={seconds}]"
-        )
-
-        await asyncio.sleep(seconds)
-        await self.send_group(session=nearest)
-        await asyncio.sleep(0.1)
-        await self.run()
-    
     @staticmethod
-    async def send_group(session: SendQueue):
-        for notification_group in session.to_send:
-            mission = notification_group.notification
+    async def send(notifications: tuple[Notifications, ...]):
+        for notification in notifications:
             try:
-                await client.send_message(chat_id=mission.chat_to_send.tg_id, text=mission.text)
+                await client.send_message(chat_id=notification.chat_to_send.tg_id, text=notification.text)
 
-                if mission.send_at.consider_date or mission.send_at.delete_after_execution:
-                    SendTime.delete_by_id(mission.send_at.id)
-                    Notifications.delete_by_id(mission.id)
+                if notification.send_at.consider_date or notification.send_at.delete_after_execution:
+                    SendTime.delete_by_id(notification.send_at.id)
+                    Notifications.delete_by_id(notification.id)
 
             except Exception as e:
                 cannot_send = e
                 print(Fore.RED + str(cannot_send))
 
-            NotificationGroups.delete_by_id(notification_group.id)
-
-        SendQueue.delete_by_id(session.id)
+        schedule.clear("send_mission")

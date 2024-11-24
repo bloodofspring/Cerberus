@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
 from controllers import MissionController
-from database.models import Notifications, SendTime, NotificationGroups
+from database.models import Notifications, SendTime
 
 
 class RmMission(BaseHandler):
@@ -31,4 +31,4 @@ class RmMission(BaseHandler):
             ]])
         )
         await asyncio.sleep(1)
-        await MissionController().reload()
+        await MissionController().update()
