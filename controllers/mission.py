@@ -1,10 +1,10 @@
 import asyncio
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 
 from colorama import Fore
 from peewee import DoesNotExist
 
-from database.models import SendTime, BotUsers, Notifications, SendSessions, CreationSession, NotificationQueue
+from database.models import SendTime, BotUsers, Notifications, SendQueue, CreationSession, NotificationGroups
 from instances import client
 from util import MIDNIGHT
 
@@ -47,214 +47,103 @@ class MissionController:
 
     @staticmethod
     def create_midnight_mission_if_not_exists():
-        _, created = SendSessions.get_or_create(send_at=MIDNIGHT, delete_after_execution=True)
+        _, created = SendQueue.get_or_create(send_at=MIDNIGHT, delete_after_execution=True)
         if created:
             print("MC session created!")
-
-    def add_today_missions(self):
-        for mission in map(lambda t: t.operation[0], self.today_missions_sql):
-            # if mission.is_in_session_plan:
-            #     print(f"{mission} already in session plan")
-            #     continue
-
-            # mission.is_in_session_plan = True
-            # Notifications.save(mission)
-
-            if not SendSessions.select().where(SendSessions.send_at == mission.send_at.send_time)[:]:
-                session = SendSessions.create(send_at=mission.send_at.send_time)
-            else:
-                session = SendSessions.get(send_at=mission.send_at.send_time)
-
-            NotificationQueue.get_or_create(notification=mission, session=session)
+        
+    @staticmethod
+    def to_seconds(value: timedelta) -> float:
+        return value.days * 86400 + value.seconds + value.microseconds / 1000000
+    
+    @staticmethod
+    def get_mission(send_time: SendTime) -> Notifications | None:
+        try:
+            return send_time.operation[0]
+        except DoesNotExist:
+            SendTime.delete_by_id(send_time.id)
+            return
 
     def update(self):
-        self.create_midnight_mission_if_not_exists()
-        print(f"Start of update: sessions={len(SendSessions.select())}")
-        self.add_today_missions()
-        self.remove_deleted()
-        print(f"End of update: sessions={len(SendSessions.select())}")
+        for ng in NotificationGroups.select():
+            try:
+                _ = ng.notification
+            except DoesNotExist:
+                if len(SendQueue.get_by_id(ng.session.id).to_send) == 1:
+                    SendQueue.delete_by_id(ng.session.id)
 
-    async def run(self):
-        self.update()
-        await self.execute_()
+                NotificationGroups.delete_by_id(ng.id)
+
+        for st in self.today_missions_sql:
+            mission = self.get_mission(send_time=st)
+
+            if mission is None:
+                continue
+
+            if NotificationGroups.select().where(NotificationGroups.notification == mission)[:]:
+                continue
+
+            session, _ = SendQueue.get_or_create(send_at=st.send_time)
+            NotificationGroups.create(notification=mission, session=session)
 
     @property
-    def nearest_send_session_sql(self) -> SendSessions | None:
-        if not SendSessions.select()[:]:
+    def nearest_send_session_sql(self) -> SendQueue | None:
+        if not SendQueue.select()[:]:
             self.update()
             return
 
-        missions = SendSessions.select().where(~SendSessions.executing).order_by(SendSessions.send_at.desc())[:]
+        missions = SendQueue.select().where(~SendQueue.executing).order_by(SendQueue.send_at.desc())[:]
 
         if not missions:
             print("Next mission in midnight")
             return
 
         return missions[0]
-
-    async def execute_(self):
+  
+    async def run(self):
         nearest = self.nearest_send_session_sql
         if nearest is None:
             return
 
         nearest.executing = True
-        SendSessions.save(nearest)
-
-        now = datetime.now()
+        SendQueue.save(nearest)
+        
+        now_time = datetime.now()
         time_to = datetime(
-            day=now.day, month=now.month, year=now.year,
+            day=now_time.day, month=now_time.month, year=now_time.year,
             hour=nearest.send_at.hour,
             minute=nearest.send_at.minute,
             second=nearest.send_at.second,
             microsecond=nearest.send_at.microsecond
         )
 
-        delta = time_to - now
+        delta = time_to - now_time
         seconds = self.to_seconds(delta)
 
         print(
             Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Ожидание... [period=({now} -> {time_to},); delta={delta}; seconds={seconds}]"
+            Fore.GREEN + f"Ожидание... [period=({now_time} -> {time_to},); delta={delta}; seconds={seconds}]"
         )
 
         await asyncio.sleep(seconds)
-        await self.send(session=nearest)
+        await self.send_group(session=nearest)
         await asyncio.sleep(0.1)
         await self.run()
-
-    async def send(self, session: SendSessions):
-        for ts in map(lambda t: t.notification, session.to_send):
-
-
-        SendSessions.delete_by_id(session.id)
-
-
-        for m in missions:
+    
+    @staticmethod
+    async def send_group(session: SendQueue):
+        for notification_group in session.to_send:
+            mission = notification_group.notification
             try:
-                Notifications.get_by_id(m.id)
-                # if m.is_in_session_plan:
-                #     continue
+                await client.send_message(chat_id=mission.chat_to_send.tg_id, text=mission.text)
 
-                # m.is_in_session_plan = True
-                # Notifications.save(m)
-
-                await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
-
-                if m.send_at.consider_date or m.send_at.delete_after_execution:
-                    SendTime.delete_by_id(m.send_at.id)
-                    Notifications.delete_by_id(m.id)
-
-            except DoesNotExist:
-                pass
+                if mission.send_at.consider_date or mission.send_at.delete_after_execution:
+                    SendTime.delete_by_id(mission.send_at.id)
+                    Notifications.delete_by_id(mission.id)
 
             except Exception as e:
                 cannot_send = e
                 print(Fore.RED + str(cannot_send))
 
-        await asyncio.sleep(1)
-        await self.run()
+            NotificationGroups.delete_by_id(notification_group.id)
 
-    @staticmethod
-    def to_seconds(value: timedelta) -> float:
-        return value.days * 86400 + value.seconds + value.microseconds / 1000000
-
-
-
-    # @property
-    # def today_missions(self) -> tuple[tuple[Notifications, ...], SendTime] | tuple[None, None]:
-    #     today_missions = self.today_missions_sql
-    #
-    #     if not today_missions:
-    #         return None, None
-    #
-    #     nearest: SendTime = today_missions[0]
-    #     nearest_operations: tuple[Notifications, ...] = tuple(map(
-    #         lambda t: t.operation[0], filter(lambda t: t.send_time == nearest.send_time, today_missions)
-    #     ))
-    #
-    #     return nearest_operations, nearest.send_time
-
-
-    # def update(self):
-    #
-    #
-    #
-    # async def reload(self):
-    #     print(
-    #         Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-    #         Fore.GREEN + f"Перезагрузка..."
-    #     )
-    #     SendSessions.truncate_table()
-    #     await self.run()
-    #
-    # @staticmethod
-    # def to_seconds(value: timedelta) -> float:
-    #     return value.days * 86400 + value.seconds + value.microseconds / 1000000
-    #
-    # async def run(self):
-    #     if SendSessions.select()[:]:
-    #         return
-    #
-    #     missions, send_time = self.today_missions
-    #     print(
-    #         Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-    #         Fore.GREEN + f"Миссии: {missions}; [send_time={send_time}]"
-    #     )
-    #     now = datetime.now()
-    #
-    #     if missions is None or send_time is None:
-    #         time_to = datetime(day=now.day + 1, month=now.month, year=now.year, hour=0, minute=0, second=0, microsecond=0)
-    #     else:
-    #         time_to = datetime(
-    #             day=now.day, month=now.month, year=now.year,
-    #             hour=send_time.hour, minute=send_time.minute, second=send_time.second, microsecond=send_time.microsecond
-    #         )
-    #
-    #     delta = time_to - now
-    #     seconds = self.to_seconds(delta)
-    #     print(
-    #         Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-    #         Fore.GREEN + f"Ожидание... [period={now} -> {time_to}; delta={delta}; seconds={seconds}]"
-    #     )
-    #     SendSessions.create()
-    #     await asyncio.sleep(seconds)
-    #     await self.execute_missions(missions)
-    #
-    # async def execute_missions(self, missions: tuple[Notifications, ...] | None):
-    #     SendSessions.truncate_table()
-    #     if missions is None:
-    #         print(Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " + Fore.GREEN + f"Нечего отправить! Обновляюсь..")
-    #         Notifications.update({Notifications.is_in_session_plan: False}).where(Notifications.is_in_session_plan).execute()
-    #         await self.run()
-    #
-    #         return
-    #
-    #     print(
-    #         Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-    #         Fore.GREEN + f"Выполнение миссий... [missions={len(missions)}]"
-    #     )
-    #
-    #     for m in missions:
-    #         try:
-    #             Notifications.get_by_id(m.id)
-    #             if m.is_in_session_plan:
-    #                 continue
-    #
-    #             m.is_in_session_plan = True
-    #             Notifications.save(m)
-    #
-    #             await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
-    #
-    #             if m.send_at.consider_date or m.send_at.delete_after_execution:
-    #                 SendTime.delete_by_id(m.send_at.id)
-    #                 Notifications.delete_by_id(m.id)
-    #
-    #         except DoesNotExist:
-    #             pass
-    #
-    #         except Exception as e:
-    #             cannot_send = e
-    #             print(Fore.RED + str(cannot_send))
-    #
-    #     await asyncio.sleep(1)
-    #     await self.run()
+        SendQueue.delete_by_id(session.id)

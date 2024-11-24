@@ -58,7 +58,6 @@ def create_mission(session: CreationSession):
         send_at=send_time,
         chat_to_send=ChatToSend.get(tg_id=session.chat_to_send_id),
         created_by=session.user,
-        is_sent=False
     )
 
     CreationSession.delete_by_id(session.id)
