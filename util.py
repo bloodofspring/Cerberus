@@ -12,21 +12,18 @@ WEEKDAYS = {
     5: "в субботу",
     6: "в воскресенье"
 }
-
-
-def remove_microsecond(time_value: time) -> str:
-    return str(time_value)[:-7]
+MIDNIGHT: time = time(hour=0, minute=0, second=0)
 
 
 async def render_notification(notification: Notifications) -> str:
     send_at: SendTime = notification.send_at
 
     if send_at.consider_date:
-        t = f"{send_at.send_date} {remove_microsecond(send_at.send_time)}".capitalize()
+        t = f"{send_at.send_date} {send_at.send_time}".capitalize()
     elif 0 <= send_at.weekday <= 6:
-        t = f"{WEEKDAYS[send_at.weekday]}, {remove_microsecond(send_at.send_time)}".capitalize()
+        t = f"{WEEKDAYS[send_at.weekday]}, {send_at.send_time}".capitalize()
     else:
-        t = f"каждый день, в {remove_microsecond(send_at.send_time)}".capitalize()
+        t = f"каждый день, в {send_at.send_time}".capitalize()
 
     if send_at.delete_after_execution:
         t = t.strip("каждый день, ")

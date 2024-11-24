@@ -1,7 +1,7 @@
 from peewee import CharField, BooleanField, IntegerField, ForeignKeyField, DateField, TimeField
 
 from database.models.base import BaseModel
-from database.models.users import ChatToSend, BotUsers
+from database.models.users import BotUsers
 
 
 class SendTime(BaseModel):
@@ -10,7 +10,11 @@ class SendTime(BaseModel):
     consider_date = BooleanField()
     weekday = IntegerField()  # pass -1 if week day is unimportant
     delete_after_execution = BooleanField()
-    is_used = BooleanField()
+
+
+class ChatToSend(BaseModel):
+    tg_id = IntegerField()
+    user = ForeignKeyField(BotUsers, backref="chats")
 
 
 class Notifications(BaseModel):

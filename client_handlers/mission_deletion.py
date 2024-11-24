@@ -1,5 +1,6 @@
 import asyncio
 
+from peewee import DoesNotExist
 from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -16,6 +17,11 @@ class RmMission(BaseHandler):
     async def func(self):
         to_delete: Notifications = Notifications.get_by_id(int(self.request.data.split()[1]))
         SendTime.delete_by_id(to_delete.send_at.id)
+        try:
+            pass
+        except DoesNotExist:
+            pass
+
         Notifications.delete_by_id(to_delete.id)
 
         await self.request.message.edit(
@@ -25,4 +31,4 @@ class RmMission(BaseHandler):
             ]])
         )
         await asyncio.sleep(1)
-        await MissionController().reload()
+        await MissionController().update()

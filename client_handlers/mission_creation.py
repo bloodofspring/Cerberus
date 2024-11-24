@@ -57,7 +57,7 @@ class NotificationTextRegister(BaseHandler):
             "Список напоминаний", callback_data="missions_list"
         )]]))
         await asyncio.sleep(1)
-        await MissionController().reload()
+        await MissionController().update()
 
 class GetChatToSend(BaseHandler):
     __name__ = "GetChatToSend"
@@ -226,13 +226,6 @@ class GetDateTime(BaseHandler):
                 InlineKeyboardButton("10>>", callback_data=self.to_call_data(time_delta=timedelta(minutes=10)))
 
             ],
-            [
-                InlineKeyboardButton("<<10", callback_data=self.to_call_data(time_delta=timedelta(seconds=-10))),
-                InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(seconds=-1))),
-                InlineKeyboardButton("Сек: {}".format(self.datetime.second), callback_data="none"),
-                InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(seconds=1))),
-                InlineKeyboardButton("10>>", callback_data=self.to_call_data(time_delta=timedelta(seconds=10)))
-            ],
             [InlineKeyboardButton(
                 "Не удалять после исполнения" if self.del_after_exec else "Удалить после исполнения",
                 callback_data=self.to_call_data(del_after_exec=not self.del_after_exec)
@@ -247,7 +240,7 @@ class GetDateTime(BaseHandler):
 
     def set_values(self):
         """call data format "CHANGE-YYYY-MM-DD-HH-MM-SS-1-0-1" (reg_weekday, reg_date, del_after_exec)"""
-        self.datetime = datetime(*map(int, self.request.data.split("-")[1:7]), microsecond=datetime.now().microsecond)
+        self.datetime = datetime(*map(int, self.request.data.split("-")[1:6]), second=0)
         self.reg_weekday = bool(int(self.request.data.split("-")[7]))
         self.reg_date = bool(int(self.request.data.split("-")[8]))
         self.del_after_exec = bool(int(self.request.data.split("-")[9]))
@@ -255,7 +248,7 @@ class GetDateTime(BaseHandler):
     def to_call_data(self, time_delta: timedelta = timedelta(), reg_weekday=None, reg_date=None, del_after_exec=None) -> str:
         """call data format "CHANGE-YYYY-MM-DD-HH-MM-SS-1-0-1" (reg_weekday, reg_date, del_after_exec)"""
         call_data = "CHANGE-"
-        call_data += str(self.datetime + time_delta).replace(' ', '-').replace(':', '-')[:-7]
+        call_data += str(self.datetime + time_delta).replace(' ', '-').replace(':', '-')
         call_data += (
             f"-{int(self.reg_weekday) if reg_weekday is None else int(reg_weekday)}"
             f"-{int(self.reg_date) if reg_date is None else int(reg_date)}-"
@@ -271,7 +264,6 @@ class GetDateTime(BaseHandler):
             consider_date=self.reg_date,
             weekday=self.datetime.weekday() if self.reg_weekday else -1,
             delete_after_execution=self.del_after_exec,
-            is_used=False,
         )
         CreationSession.create(
             user=self.db_user,

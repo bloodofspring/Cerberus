@@ -1,53 +1,45 @@
+"""Плачущий призрак на пенсии"""
 import asyncio
 from datetime import datetime, timedelta
 
 from colorama import Fore
 from peewee import DoesNotExist
 
-from database.models import SendTime, BotUsers, Notifications, IsWaiting, CreationSession
+from database.models import SendTime, BotUsers, Notifications, CreationSession
+
+import aioschedule as schedule
+
 from instances import client
 
 
 class MissionController:
     def __init__(self):
-        self.delete_unused_sessions()
+        self.delete_unused_creation_sessions()
         self.delete_unused_time_points()
 
     @property
     def today_missions_sql(self) -> tuple[SendTime, ...]:
         now = datetime.now()
         result = SendTime.select().where(
-            SendTime.is_used & (SendTime.send_time > now.time()) & (
+            (SendTime.send_time > now.time()) & (
                     (SendTime.consider_date & (SendTime.send_date == now.date())) |
                     (SendTime.weekday.between(0, 6) & (SendTime.weekday == now.weekday())) |
                     ((~SendTime.consider_date) & (~SendTime.weekday.between(0, 6)))
             )
-        ).order_by(SendTime.send_time)
+        ).order_by(SendTime.send_time.desc())
 
         return tuple(result)
 
-    @property
-    def today_missions(self) -> tuple[tuple[Notifications, ...], SendTime] | tuple[None, None]:
-        today_missions = self.today_missions_sql
-
-        if not today_missions:
-            return None, None
-
-        nearest: SendTime = today_missions[0]
-        nearest_operations: tuple[Notifications, ...] = tuple(map(
-            lambda t: t.operation[0], filter(lambda t: t.send_time == nearest.send_time, today_missions)
-        ))
-
-        return nearest_operations, nearest.send_time
+    @staticmethod
+    def delete_unused_time_points():
+        for st in SendTime.select():
+            try:
+                st.operation[0]
+            except (DoesNotExist, IndexError):
+                SendTime.delete_by_id(st.id)
 
     @staticmethod
-    def delete_unused_time_points(period: int = 1):
-        SendTime.delete().where(
-            (~SendTime.is_used) & (SendTime.updated_at < (datetime.now() - timedelta(days=period)))
-        ).execute()
-
-    @staticmethod
-    def delete_unused_sessions(period: int = 1):
+    def delete_unused_creation_sessions(period: int = 1):
         CreationSession.delete().where(CreationSession.updated_at < (datetime.now() - timedelta(days=period))).execute()
 
     def today_missions_for_user(self, user: BotUsers):
@@ -60,78 +52,60 @@ class MissionController:
 
         return tuple(map(lambda t: t.operation[0], result))[0]
 
-    async def reload(self):
+    async def run_until_all_jobs_completed(self):
+        while True:
+            await schedule.run_pending()
+            if not schedule.default_scheduler.jobs:
+                print(
+                    Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                    Fore.LIGHTRED_EX + "Finishing pending..."
+                )
+                break
+            await asyncio.sleep(10)
+
+        await asyncio.sleep(0.5)
+        await self.update()
+
+    async def update(self):
         print(
-            Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Перезагрузка..."
+            Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+            Fore.LIGHTMAGENTA_EX + "Updating..."
         )
-        IsWaiting.truncate_table()
-        await self.run()
+        schedule.clear("send_mission")
+        today_missions = self.today_missions_sql
+
+        if not today_missions:
+            print(
+                Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+                Fore.LIGHTMAGENTA_EX + "Next mission in midnight"
+            )
+            schedule.every(1).day.at("00:00").do(self.send, tuple()).tag("send_mission")
+            return
+
+        nearest = today_missions[0]
+        print(
+            Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
+            Fore.LIGHTMAGENTA_EX + f"Next mission at {nearest.send_time}"
+        )
+        schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.send, tuple(map(lambda t: t.operation[0], filter(
+            lambda x: x.send_time == nearest.send_time, today_missions
+        )))).tag("send_mission")
+
+        if len(schedule.default_scheduler.jobs) == 1:
+            await self.run_until_all_jobs_completed()
 
     @staticmethod
-    def to_seconds(value: timedelta) -> float:
-        return value.days * 86400 + value.seconds + value.microseconds / 1000000
-
-    async def run(self):
-        if IsWaiting.select()[:]:
-            return
-
-        missions, send_time = self.today_missions
-        print(
-            Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Миссии: {missions}; [send_time={send_time}]"
-        )
-        now = datetime.now()
-
-        if missions is None or send_time is None:
-            time_to = datetime(day=now.day + 1, month=now.month, year=now.year, hour=0, minute=0, second=0, microsecond=0)
-        else:
-            time_to = datetime(
-                day=now.day, month=now.month, year=now.year,
-                hour=send_time.hour, minute=send_time.minute, second=send_time.second, microsecond=send_time.microsecond
-            )
-
-        delta = time_to - now
-        seconds = self.to_seconds(delta)
-        print(
-            Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Ожидание... [period={now} -> {time_to}; delta={delta}; seconds={seconds}]"
-        )
-        IsWaiting.create()
-        await asyncio.sleep(seconds)
-        await self.execute_missions(missions)
-
-    async def execute_missions(self, missions: tuple[Notifications, ...] | None):
-        IsWaiting.truncate_table()
-        if missions is None:
-            print(
-                Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-                Fore.GREEN + f"Нечего отправить! Обновляюсь.."
-            )
-            await self.run()
-
-            return
-
-        print(
-            Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Выполнение миссий... [missions={len(missions)}]"
-        )
-
-        for m in missions:
+    async def send(notifications: tuple[Notifications, ...]):
+        for notification in notifications:
             try:
-                Notifications.get_by_id(m.id)
-                await client.send_message(chat_id=m.chat_to_send.tg_id, text=m.text)
+                await client.send_message(chat_id=notification.chat_to_send.tg_id, text=notification.text)
 
-                if m.send_at.consider_date or m.send_at.delete_after_execution:
-                    SendTime.delete_by_id(m.send_at.id)
-                    Notifications.delete_by_id(m.id)
-
-            except DoesNotExist:
-                pass
+                if notification.send_at.consider_date or notification.send_at.delete_after_execution:
+                    SendTime.delete_by_id(notification.send_at.id)
+                    Notifications.delete_by_id(notification.id)
 
             except Exception as e:
                 cannot_send = e
                 print(Fore.RED + str(cannot_send))
 
-        await asyncio.sleep(1)
-        await self.run()
+        schedule.clear("send_mission")
