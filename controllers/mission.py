@@ -87,9 +87,7 @@ class MissionController:
             Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
             Fore.GREEN + f"Next mission at {nearest.send_time}"
         )
-        schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.send, tuple(map(lambda t: t.operation[0], filter(
-            lambda x: x.send_time == nearest.send_time, today_missions
-        )))).tag("send_mission")
+        schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(self.update, self).tag("send_mission")
 
         if len(schedule.default_scheduler.jobs) == 1:
             await self.run_until_all_jobs_completed()
