@@ -26,7 +26,7 @@ class MissionController:
                     (SendTime.weekday.between(0, 6) & (SendTime.weekday == now.weekday())) |
                     ((~SendTime.consider_date) & (~SendTime.weekday.between(0, 6)))
             )
-        ).order_by(SendTime.send_time.desc())
+        ).order_by(SendTime.send_time)
 
         return tuple(result)
 
