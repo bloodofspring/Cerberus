@@ -258,6 +258,15 @@ class GetDateTime(BaseHandler):
         return call_data
 
     async def submit(self):
+        if (self.reg_date or self.del_after_exec) and self.datetime < datetime.now():
+            await self.request.answer(
+                (
+                    "Данное напоминание будет удалено после исполнения;\n"
+                    f"Время его отправки должно быть больше {str(datetime.now())[:-7]}"
+                ), show_alert=True
+            )
+            return
+
         created_send_time = SendTime.create(
             send_date=self.datetime.date(),
             send_time=self.datetime.time(),
