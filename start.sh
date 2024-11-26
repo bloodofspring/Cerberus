@@ -12,11 +12,10 @@ else
   if python3 -V 2> start_log.txt
   then
     echo "Python3 detected"
-    echo "Python detected"
     echo "creating virtual environment..."
-    python -m venv .venv || echo "Error while creating .venv"
+    python3 -m venv .venv || echo "Error while creating .venv"
   else echo "No python3 detected!"
-fi
+  fi
 fi
 
 if [ -d "$.venv" ]
