@@ -161,7 +161,7 @@ class GetChatToSend(BaseHandler):
                 await self.save_chat(save=int(self.request.data[10]))
 
             case _ as c if c.strip("CHAT-PUBPRV").isalnum():
-                if c.split("-")[2] == "PUB":
+                if "PUB" in c.split("-"):
                     await self.apply_chat(chat_id=int("-" + c.strip("CHAT-PUB")))
                     return
 
