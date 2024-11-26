@@ -80,9 +80,13 @@ class GetChatToSend(BaseHandler):
 
                 continue
 
+            if chat.title is not None:
+                button_text = chat.title[:29] + ("..." if len(chat.title) > 29 else "")
+            else:
+                button_text = "Чат c @{}".format(chat.username[:22] + ("..." if len(chat.username) > 22 else ""))
+
             keyboard.inline_keyboard.append([InlineKeyboardButton(
-                chat.title if chat.title is not None else f"Чат c @{chat.username}",
-                callback_data=f"CHAT-{c.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
+                button_text, callback_data=f"CHAT-{c.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
             )])
 
         keyboard.inline_keyboard.append([
@@ -157,7 +161,7 @@ class GetChatToSend(BaseHandler):
                 await self.save_chat(save=int(self.request.data[10]))
 
             case _ as c if c.strip("CHAT-PUBPRV").isalnum():
-                if c.split("-")[2] == "PUB":
+                if "PUB" in c.split("-"):
                     await self.apply_chat(chat_id=int("-" + c.strip("CHAT-PUB")))
                     return
 
@@ -206,11 +210,11 @@ class GetDateTime(BaseHandler):
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(days=-1))),
                 InlineKeyboardButton(WEEKDAYS[self.datetime.weekday()].capitalize(), callback_data="none"),
                 InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=1))),
-            ] if self.reg_weekday else [],
+            ] if self.reg_weekday and not self.reg_date and not self.del_after_exec else [],
             [InlineKeyboardButton(
                 "Не учитывать день недели" if self.reg_weekday else "Учитывать день недели",
                 callback_data=self.to_call_data(reg_weekday=not self.reg_weekday)
-            )],
+            )] if not self.reg_date and not self.del_after_exec else [],
             [
                 InlineKeyboardButton("<<5", callback_data=self.to_call_data(time_delta=timedelta(hours=-5))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(hours=-1))),
@@ -302,7 +306,7 @@ class GetDateTime(BaseHandler):
             str(self.datetime.second).rjust(2, "0")
         )
 
-        if self.reg_weekday:
+        if self.reg_weekday and not self.del_after_exec and not self.reg_date:
             text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS[self.datetime.weekday()])
 
         if self.del_after_exec or self.reg_date:
