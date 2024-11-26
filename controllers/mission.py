@@ -56,12 +56,14 @@ class MissionController:
     async def run_until_all_jobs_completed():
         while True:
             await schedule.run_pending()
+
             if not schedule.default_scheduler.jobs:
                 print(
                     Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
                     Fore.GREEN + "Finishing pending..."
                 )
                 break
+
             await asyncio.sleep(10)
 
         await asyncio.sleep(0.5)
@@ -71,7 +73,8 @@ class MissionController:
             Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
             Fore.LIGHTMAGENTA_EX + "Updating..."
         )
-        schedule.clear("send_mission")
+        schedule.clear("midnight_update")  # delete midnight duplicate
+        schedule.clear("send_mission")  # delete current mission
         today_missions = self.today_missions_sql
 
         if not today_missions:
@@ -79,18 +82,18 @@ class MissionController:
                 Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
                 Fore.GREEN + "Next mission in midnight"
             )
-            schedule.every(1).day.at("00:00").do(self.update).tag("send_mission")
-            return
+            schedule.every(1).day.at("00:00").do(self.update).tag("midnight_update")
 
-        nearest = today_missions[0]
-        print(
-            Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
-            Fore.GREEN + f"Next mission at {nearest.send_time}"
-        )
-        schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(
-            self.send, tuple(map(lambda t: t.operation[0], filter(
-                lambda x: x.send_time == nearest.send_time, today_missions
-        )))).tag("send_mission")
+        else:
+            nearest = today_missions[0]
+            print(
+                Fore.YELLOW + f"[{datetime.now()}][#]>>-||--> " +
+                Fore.GREEN + f"Next mission at {nearest.send_time}"
+            )
+            schedule.every(1).day.at(f"{nearest.send_time.hour}:{nearest.send_time.minute}").do(
+                self.send, tuple(map(lambda t: t.operation[0], filter(
+                    lambda x: x.send_time == nearest.send_time, today_missions
+            )))).tag("send_mission")
 
         if len(schedule.default_scheduler.jobs) == 1:
             await self.run_until_all_jobs_completed()
