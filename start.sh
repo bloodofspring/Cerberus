@@ -12,13 +12,13 @@ else
   if python3 -V 2> start_log.txt
   then
     echo "Python3 detected"
-    echo "creating virtual environment..."
+    echo "Creating virtual environment..."
     python3 -m venv .venv || echo "Error while creating .venv"
   else echo "No python3 detected!"
   fi
 fi
 
-if [ -d "$.venv" ]
+if [ -d .venv ]
 then
   echo "Installing requirements.txt..."
   .venv/bin/pip install -r requirements.txt
