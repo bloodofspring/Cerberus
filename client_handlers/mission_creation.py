@@ -206,11 +206,11 @@ class GetDateTime(BaseHandler):
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(days=-1))),
                 InlineKeyboardButton(WEEKDAYS[self.datetime.weekday()].capitalize(), callback_data="none"),
                 InlineKeyboardButton(">>", callback_data=self.to_call_data(time_delta=timedelta(days=1))),
-            ] if self.reg_weekday else [],
+            ] if self.reg_weekday and not self.reg_date and not self.del_after_exec else [],
             [InlineKeyboardButton(
                 "Не учитывать день недели" if self.reg_weekday else "Учитывать день недели",
                 callback_data=self.to_call_data(reg_weekday=not self.reg_weekday)
-            )],
+            )] if not self.reg_date and not self.del_after_exec else [],
             [
                 InlineKeyboardButton("<<5", callback_data=self.to_call_data(time_delta=timedelta(hours=-5))),
                 InlineKeyboardButton("<<", callback_data=self.to_call_data(time_delta=timedelta(hours=-1))),
@@ -302,7 +302,7 @@ class GetDateTime(BaseHandler):
             str(self.datetime.second).rjust(2, "0")
         )
 
-        if self.reg_weekday:
+        if self.reg_weekday and not self.del_after_exec and not self.reg_date:
             text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS[self.datetime.weekday()])
 
         if self.del_after_exec or self.reg_date:
