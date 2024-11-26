@@ -2,21 +2,28 @@
 touch start_log.txt
 git pull
 
-if python 2> start_log.txt
-then echo "Python detected" && echo "creating env..." && python -m venv .venv
+if python -V 2> start_log.txt
+then
+  echo "Python detected"
+  echo "creating virtual environment..."
+  python -m venv .venv || echo "Error while creating .venv"
 else echo "No python detected. Searching for python3..."
 fi
 
-if python3 2> start_log.txt
-then echo "Python3 detected" && echo "creating env..." && python3 -m venv .venv
-else echo "No python3 detected. Searching for python3..."
+if python3 -V 2> start_log.txt
+then
+  echo "Python3 detected"
+  echo "Python detected"
+  echo "creating virtual environment..."
+  python -m venv .venv || echo "Error while creating .venv"
+else echo "No python3 detected!"
 fi
 
-if cd .venv/bin 2> start_log.txt
+if [ -d "$.venv" ]
 then
   echo "Installing requirements.txt..."
-  pip install -r requirements.txt
+  .venv/bin/pip install -r requirements.txt
   echo "Starting code..."
-  python run.py
+  .venv/bin/python run.py
 else "No virtual environment!"
 fi
