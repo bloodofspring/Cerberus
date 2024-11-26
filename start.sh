@@ -7,16 +7,16 @@ then
   echo "Python detected"
   echo "creating virtual environment..."
   python -m venv .venv || echo "Error while creating .venv"
-else echo "No python detected. Searching for python3..."
+else
+  echo "No python detected. Searching for python3..."
+  if python3 -V 2> start_log.txt
+  then
+    echo "Python3 detected"
+    echo "Python detected"
+    echo "creating virtual environment..."
+    python -m venv .venv || echo "Error while creating .venv"
+  else echo "No python3 detected!"
 fi
-
-if python3 -V 2> start_log.txt
-then
-  echo "Python3 detected"
-  echo "Python detected"
-  echo "creating virtual environment..."
-  python -m venv .venv || echo "Error while creating .venv"
-else echo "No python3 detected!"
 fi
 
 if [ -d "$.venv" ]
