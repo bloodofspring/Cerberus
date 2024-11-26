@@ -80,9 +80,13 @@ class GetChatToSend(BaseHandler):
 
                 continue
 
+            if chat.title is not None:
+                button_text = chat.title[:29] + ("..." if len(chat.title) > 29 else "")
+            else:
+                button_text = "Чат c @{}".format(chat.username[:22] + ("..." if len(chat.username) > 22 else ""))
+
             keyboard.inline_keyboard.append([InlineKeyboardButton(
-                chat.title if chat.title is not None else f"Чат c @{chat.username}",
-                callback_data=f"CHAT-{c.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
+                button_text, callback_data=f"CHAT-{c.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
             )])
 
         keyboard.inline_keyboard.append([
