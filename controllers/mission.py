@@ -52,7 +52,8 @@ class MissionController:
 
         return tuple(map(lambda t: t.operation[0], result))[0]
 
-    async def run_until_all_jobs_completed(self):
+    @staticmethod
+    async def run_until_all_jobs_completed():
         while True:
             await schedule.run_pending()
             if not schedule.default_scheduler.jobs:
@@ -64,7 +65,6 @@ class MissionController:
             await asyncio.sleep(10)
 
         await asyncio.sleep(0.5)
-        await self.update()
 
     async def update(self):
         print(
@@ -95,8 +95,7 @@ class MissionController:
         if len(schedule.default_scheduler.jobs) == 1:
             await self.run_until_all_jobs_completed()
 
-    @staticmethod
-    async def send(notifications: tuple[Notifications, ...]):
+    async def send(self, notifications: tuple[Notifications, ...]):
         for notification in notifications:
             try:
                 await client.send_message(chat_id=notification.chat_to_send.tg_id, text=notification.text)
@@ -109,3 +108,4 @@ class MissionController:
                 print(Fore.RED + str(e))
 
         schedule.clear("send_mission")
+        await self.update()
