@@ -1,11 +1,17 @@
 aioschedule==0.5.2
 cachebox==4.3.3
 colorama==0.4.6
+dateparser==1.2.0
 peewee==3.17.8
 pyaes==1.6.1
 Pyrogram==2.0.106
 pyrostep==2.11.22
 PySocks==1.7.1
+python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
+pytz==2024.2
+regex==2024.11.6
+six==1.16.0
 TgCrypto==1.2.5
 typing_extensions==4.12.2
+tzlocal==5.2

@@ -1,17 +1,11 @@
+import json
 from datetime import time
 
 from database.models import Notifications, SendTime, CreationSession, ChatToSend, BotUsers
 from instances import client
 
-WEEKDAYS = {
-    0: "в понедельник",
-    1: "во вторник",
-    2: "в среду",
-    3: "в четверг",
-    4: "в пятницу",
-    5: "в субботу",
-    6: "в воскресенье"
-}
+WEEKDAYS_ACCUSATIVE = ["в понедельник", "во вторник", "в среду", "в четверг", "в пятницу", "в субботу", "в воскресенье"]
+WEEKDAYS_NOMINATIVE = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
 MIDNIGHT: time = time(hour=0, minute=0, second=0)
 
 
@@ -33,7 +27,7 @@ async def render_notification(notification: Notifications) -> str:
     )
 
     if 0 <= send_at.weekday <= 6 and not send_at.delete_after_execution and not send_at.consider_date:
-        send_time_text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS[send_at.weekday])
+        send_time_text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS_ACCUSATIVE[send_at.weekday])
 
     if send_at.delete_after_execution or send_at.consider_date:
         send_time_text += "будет удалено после исполнения " + ("(Отправка по дате)" if send_at.consider_date else "")
