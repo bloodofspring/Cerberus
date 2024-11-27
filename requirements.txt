@@ -1,8 +1,11 @@
 aioschedule==0.5.2
+cachebox==4.3.3
 colorama==0.4.6
 peewee==3.17.8
 pyaes==1.6.1
 Pyrogram==2.0.106
+pyrostep==2.11.22
 PySocks==1.7.1
 python-dotenv==1.0.1
 TgCrypto==1.2.5
+typing_extensions==4.12.2

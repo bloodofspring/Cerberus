@@ -1,6 +1,7 @@
 """Run this file to start instances"""
 from datetime import datetime
 
+import pyrostep
 from colorama import Fore, init
 
 from client_handlers.activate import add_handlers
@@ -28,6 +29,7 @@ def run_bot() -> None:
     add_handlers()
     create_tables()
     by_alien()
+    pyrostep.listen(app=client)
     client.run()
 
 

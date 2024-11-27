@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from pyrogram.filters import command, regex, create
-from pyrogram import Client, filters, types, handlers
 from colorama import Fore
+from pyrogram import Client, filters, types, handlers
+from pyrogram.filters import command, regex, create
 
 from database.models import BotUsers
 
-request_type = types.Message | types.CallbackQuery
+request_type = types.Message | types.CallbackQuery | types.ChatMemberUpdated
 __all__ = ["BaseHandler", "request_type", "Client", "command", "regex", "create"]
 
 
@@ -41,14 +41,8 @@ class BaseHandler:
 
         if request.from_user is None:
             return
+
         await self.func()
-        # try:
-        #     await self.func()
-        # except Exception as e:
-        #     print(
-        #         Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
-        #         Fore.LIGHTRED_EX + f"Ошибка в {self.__name__}! [type={type(e)}; text={str(e)}]"
-        #     )
 
     @property
     def de_pyrogram_handler(self):
