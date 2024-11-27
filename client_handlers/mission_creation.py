@@ -12,7 +12,7 @@ from pyrostep import steps
 from client_handlers.base import *
 from controllers import MissionController
 from database.models import ChatToSend, SendTime, CreationSession
-from util import create_mission, get_last_session, WEEKDAYS_ACCUSATIVE, WEEKDAYS_NOMINATIVE
+from util import create_mission, get_last_session, WEEKDAYS_ACCUSATIVE, WEEKDAYS_NOMINATIVE, render_time
 
 
 class GetChatToSend(BaseHandler):
@@ -146,8 +146,7 @@ class GetDateTime(BaseHandler):
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("get_dt"))
 
-    async def ask_time(self, *args):
-        print(args)
+    async def ask_time(self):
         await self.request.message.edit(
             (
                 "Отправьте время для отправки напоминаний ниже.\n\n"
@@ -162,7 +161,6 @@ class GetDateTime(BaseHandler):
     async def register_time(self, _, msg: types.Message):
         time = dateparser.parse(msg.text)
         consider_weekday = any(map(lambda x: x in msg.text.lower(), WEEKDAYS_ACCUSATIVE + WEEKDAYS_NOMINATIVE))
-        print(consider_weekday)
 
         if time is None:
             await msg.reply(
@@ -180,8 +178,9 @@ class GetDateTime(BaseHandler):
             return
 
         await self.client.send_message(
-            msg.chat.id, "Сохранить время {}?".format(time),
-            reply_markup=InlineKeyboardMarkup([[
+            msg.chat.id, "{}\n\nСохранить?".format(
+                render_time((time, False, time.date() != datetime.now().date(), consider_weekday))
+            ), reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("Да", callback_data=f"get_dt-ask_deletion={str(time)}={int(consider_weekday)}"),
                 InlineKeyboardButton("Нет", callback_data="get_dt-ask_time")
             ]])

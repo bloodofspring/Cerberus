@@ -1,5 +1,4 @@
-import json
-from datetime import time
+from datetime import time, datetime
 
 from database.models import Notifications, SendTime, CreationSession, ChatToSend, BotUsers
 from instances import client
@@ -9,35 +8,52 @@ WEEKDAYS_NOMINATIVE = ["понедельник", "вторник", "среда",
 MIDNIGHT: time = time(hour=0, minute=0, second=0)
 
 
-async def render_notification(notification: Notifications) -> str:
-    send_at: SendTime = notification.send_at
+def render_time(db_time: SendTime | tuple[datetime, bool, bool, bool]):
     send_time_text = ""
+    
+    if isinstance(db_time, SendTime):
+        delete_after_execution = db_time.delete_after_execution
+        consider_date = db_time.consider_date
+        consider_weekday = 0 <= db_time.weekday <= 6
+        send_date = db_time.send_date
+        send_time = db_time.send_time
+    else:
+        delete_after_execution = db_time[1]
+        consider_date = db_time[2]
+        consider_weekday = db_time[3]
+        send_date = db_time[0].date()
+        send_time = db_time[0].time()
 
-    if send_at.consider_date:
+    if consider_date:
         send_time_text += "**Дата:** {}/{}/{}\n".format(
-            str(send_at.send_date.day).rjust(2, "0"),
-            str(send_at.send_date.month).rjust(2, "0"),
-            str(send_at.send_date.year).rjust(4, "0"),
+            str(send_date.day).rjust(2, "0"),
+            str(send_date.month).rjust(2, "0"),
+            str(send_date.year).rjust(4, "0"),
         )
 
     send_time_text += "**Время:** {}:{}:{}\n".format(
-        str(send_at.send_time.hour).rjust(2, "0"),
-        str(send_at.send_time.minute).rjust(2, "0"),
-        str(send_at.send_time.second).rjust(2, "0")
+        str(send_time.hour).rjust(2, "0"),
+        str(send_time.minute).rjust(2, "0"),
+        str(send_time.second).rjust(2, "0")
     )
 
-    if 0 <= send_at.weekday <= 6 and not send_at.delete_after_execution and not send_at.consider_date:
-        send_time_text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS_ACCUSATIVE[send_at.weekday])
+    if consider_weekday and not delete_after_execution and not consider_date:
+        send_time_text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS_ACCUSATIVE[send_date.weekday()])
 
-    if send_at.delete_after_execution or send_at.consider_date:
-        send_time_text += "будет удалено после исполнения " + ("(Отправка по дате)" if send_at.consider_date else "")
-    elif not 0 <= send_at.weekday <= 6:
+    if delete_after_execution or consider_date:
+        send_time_text += "будет удалено после исполнения " + ("(Отправка по дате)" if consider_date else "")
+    elif not consider_weekday:
         send_time_text += "будет отправляться каждый день"
     else:
         send_time_text = send_time_text.strip(" и")
 
     send_time_text = send_time_text.replace("и будет", "и")
+    
+    return send_time_text
 
+
+async def render_notification(notification: Notifications) -> str:
+    send_time_text = render_time(db_time=notification.send_at)
     send_chat = await client.get_chat(notification.chat_to_send.tg_id)
 
     return (
