@@ -161,7 +161,6 @@ class GetDateTime(BaseHandler):
     async def register_time(self, _, msg: types.Message):
         time = dateparser.parse(msg.text)
         consider_weekday = any(map(lambda x: x in msg.text.lower(), WEEKDAYS_ACCUSATIVE + WEEKDAYS_NOMINATIVE))
-        print(time)
 
         if time is None:
             await msg.reply(
@@ -170,7 +169,6 @@ class GetDateTime(BaseHandler):
             )
             return
 
-        print(time.date() != datetime.now().date(), not consider_weekday, time < datetime.now())
         if (time.date() != datetime.now().date() and not consider_weekday) and time < datetime.now():
             await msg.reply(
                 "Данное напоминание будет удалено после исполнения;\n"
