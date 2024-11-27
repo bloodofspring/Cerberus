@@ -13,13 +13,13 @@ class MissionsList(BaseHandler):
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and "missions_list" in q.data)
 
-    def __init__(self, page: int = 0, buttons_on_page: int = 2):
+    def __init__(self, page: int = 0, buttons_on_page: int = 6):
         super().__init__()
         self.buttons_on_page = buttons_on_page
         self.page = page
 
     @property
-    def chats_sql(self) -> tuple[tuple[Notifications, ...], int]:
+    def data_sql(self) -> tuple[tuple[Notifications, ...], int]:
         data = Notifications.select().where(Notifications.created_by == self.db_user)
         on_page = data[self.page * self.buttons_on_page:(self.page + 1) * self.buttons_on_page]
 
@@ -40,7 +40,7 @@ class MissionsList(BaseHandler):
 
     @property
     def keyboard(self) -> tuple[InlineKeyboardMarkup, bool, int]:
-        content, max_pages = self.chats_sql
+        content, max_pages = self.data_sql
         keyboard = InlineKeyboardMarkup([])
 
         if not content:
