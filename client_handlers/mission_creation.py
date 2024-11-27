@@ -1,8 +1,10 @@
 import asyncio
 from datetime import datetime, timedelta
 
+from pyrogram import types
 from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrostep import steps
 
 from client_handlers.base import *
 from controllers import MissionController
@@ -12,8 +14,7 @@ from util import create_mission, get_last_session, WEEKDAYS
 
 class ChatRegister(BaseHandler):
     __name__ = "ChatRegister"
-    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip(
-        "-").isalnum())
+    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip("-").isalnum())
 
     async def func(self):
         try:
@@ -39,29 +40,6 @@ class ChatRegister(BaseHandler):
         ]])
         await self.request.reply(f"Сохранить чат {chat.title}?", reply_markup=keyboard)
 
-
-class NotificationTextRegister(BaseHandler):
-    __name__ = "NotificationTextRegister"
-    FILTER = create(lambda _, __, m: m and m.text and m.text.startswith("!"))
-
-    async def func(self):
-        if self.request.text == "!":
-            await self.request.reply("Текст напоминания не может быть пустым!")
-            return
-
-        session = get_last_session(self.db_user)
-        if session is None:
-            return
-
-        session.text = self.request.text.lstrip("!")
-        CreationSession.save(session)
-
-        create_mission(session=session)
-        await self.request.reply("Напоминание создано!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
-            "Список напоминаний", callback_data="missions_list"
-        )]]))
-        await asyncio.sleep(1)
-        await MissionController().update()
 
 class GetChatToSend(BaseHandler):
     __name__ = "GetChatToSend"
@@ -143,7 +121,23 @@ class GetChatToSend(BaseHandler):
 
         await self.request.message.edit("Чат выбран!")
         await asyncio.sleep(0.5)
-        await self.request.message.edit("Отправьте текст напоминания ниже! Сообщение начните с символа '!'")
+        await self.request.message.edit("Отправьте текст напоминания сообщением ниже")
+        await steps.register_next_step(self.request.from_user.id, self.save_text)
+
+    async def save_text(self, _, msg: types.Message):
+        session = get_last_session(self.db_user)
+        if session is None:
+            return
+
+        session.text = msg.text
+        CreationSession.save(session)
+
+        create_mission(session=session)
+        await msg.reply("Напоминание создано!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
+            "Список напоминаний", callback_data="missions_list"
+        )]]))
+        await asyncio.sleep(1)
+        await MissionController().update()
 
     async def main(self):
         await self.request.message.edit(

@@ -41,14 +41,8 @@ class BaseHandler:
 
         if request.from_user is None:
             return
+
         await self.func()
-        # try:
-        #     await self.func()
-        # except Exception as e:
-        #     print(
-        #         Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
-        #         Fore.LIGHTRED_EX + f"Ошибка в {self.__name__}! [type={type(e)}; text={str(e)}]"
-        #     )
 
     @property
     def de_pyrogram_handler(self):
