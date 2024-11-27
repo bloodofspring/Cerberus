@@ -10,7 +10,7 @@ class BotAdded(BaseHandler):
     HANDLER = ChatMemberUpdatedHandler
     FILTER = create(lambda _, __, u: u.old_chat_member is None)
 
-    async def func(self):  # ToDo: Раскомментить
+    async def func(self):
         if self.request.chat.type not in [self.request.chat.type.SUPERGROUP, self.request.chat.type.GROUP]:
             await self.client.send_message(self.request.chat.id, "Чат не является группой или супергруппой!")
             await self.client.leave_chat(chat_id=self.request.chat.id)
