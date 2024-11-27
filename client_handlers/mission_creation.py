@@ -45,6 +45,10 @@ class NotificationTextRegister(BaseHandler):
     FILTER = create(lambda _, __, m: m and m.text and m.text.startswith("!"))
 
     async def func(self):
+        if self.request.text == "!":
+            await self.request.reply("Текст напоминания не может быть пустым!")
+            return
+
         session = get_last_session(self.db_user)
         if session is None:
             return

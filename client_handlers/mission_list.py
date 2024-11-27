@@ -4,7 +4,7 @@ from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from client_handlers.base import *
-from database.models import Notifications
+from database.models import Notifications, SendTime
 from util import render_notification
 
 
@@ -16,13 +16,18 @@ class MissionsList(BaseHandler):
     @property
     def keyboard(self):  # , page: int
         user = self.db_user
-        all_n = Notifications.select().where(Notifications.created_by == user)
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton(
-                n.text[:29] + ("..." if len(n.text) > 29 else ""),
-                callback_data=f"at_mission {n.id}"
-            )
-        ] for n in all_n])
+        keyboard = InlineKeyboardMarkup([])
+
+        for notification in Notifications.select().where(Notifications.created_by == user):
+            if not notification.text:
+                SendTime.delete_by_id(notification.send_at.id)
+                Notifications.delete_by_id(notification.id)
+                continue
+
+            keyboard.inline_keyboard.append([InlineKeyboardButton(
+                notification.text[:29] + ("..." if len(notification.text) > 29 else ""),
+                callback_data=f"at_mission {notification.id}"
+            )])
 
         keyboard.inline_keyboard.append([InlineKeyboardButton(
             "+ Добавить напоминание",
