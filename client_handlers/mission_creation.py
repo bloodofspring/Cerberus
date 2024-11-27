@@ -188,6 +188,10 @@ class GetDateTime(BaseHandler):
         )
 
     async def ask_deletion(self, *data):
+        if dateparser.parse(data[0]).date() != datetime.now().date() and not int(data[1]):
+            await self.submit(time_str=data[0], consider_weekday=data[1], delete_after_execution=False)
+            return
+
         await self.request.message.edit(
             "Удалить напоминание после отправки?",
             reply_markup=InlineKeyboardMarkup([[
