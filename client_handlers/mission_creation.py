@@ -161,6 +161,7 @@ class GetDateTime(BaseHandler):
     async def register_time(self, _, msg: types.Message):
         time = dateparser.parse(msg.text)
         consider_weekday = any(map(lambda x: x in msg.text.lower(), WEEKDAYS_ACCUSATIVE + WEEKDAYS_NOMINATIVE))
+        print(time)
 
         if time is None:
             await msg.reply(
@@ -169,7 +170,8 @@ class GetDateTime(BaseHandler):
             )
             return
 
-        if time.date() < datetime.now().date():
+        print(time.date() != datetime.now().date(), not consider_weekday, time < datetime.now())
+        if (time.date() != datetime.now().date() and not consider_weekday) and time < datetime.now():
             await msg.reply(
                 "Данное напоминание будет удалено после исполнения;\n"
                 f"Время его отправки должно быть больше {str(datetime.now())[:-7]}",
@@ -179,7 +181,8 @@ class GetDateTime(BaseHandler):
 
         await self.client.send_message(
             msg.chat.id, "{}\n\nСохранить?".format(
-                render_time((time, False, time.date() != datetime.now().date(), consider_weekday))
+                render_time(
+                    (time, False, (time.date() != datetime.now().date() and not consider_weekday), consider_weekday))
             ), reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("Да", callback_data=f"get_dt-ask_deletion={str(time)}={int(consider_weekday)}"),
                 InlineKeyboardButton("Нет", callback_data="get_dt-ask_time")
@@ -207,7 +210,7 @@ class GetDateTime(BaseHandler):
         created_send_time = SendTime.create(
             send_date=time.date(),
             send_time=time.time(),
-            consider_date=time.date() != datetime.now().date(),
+            consider_date=(time.date() != datetime.now().date() and not consider_weekday),
             weekday=time.weekday() if consider_weekday else -1,
             delete_after_execution=delete_after_execution
         )
