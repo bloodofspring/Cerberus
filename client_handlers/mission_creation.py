@@ -12,35 +12,6 @@ from database.models import ChatToSend, SendTime, CreationSession
 from util import create_mission, get_last_session, WEEKDAYS
 
 
-class ChatRegister(BaseHandler):
-    __name__ = "ChatRegister"
-    FILTER = create(lambda _, __, m: m and m.text and (len(m.text)) == 14 and m.text.startswith("-") and m.text.strip("-").isalnum())
-
-    async def func(self):
-        try:
-            chat = await self.client.get_chat(int(self.request.text))
-            me = await self.client.get_me()
-            me_in_chat = await self.client.get_chat_member(int(self.request.text), me.id)
-
-            if me_in_chat.status != me_in_chat.status.ADMINISTRATOR:
-                raise
-
-            if me_in_chat.permissions is not None and not me_in_chat.permissions.can_send_messages:
-                raise
-        except (ValueError, TypeError, Exception) as e:
-            print(type(e), e)
-            await self.request.reply("Чата с таким ID  не существует или бот не добавлен в него!")
-            await self.request.reply(
-                "Пожалуйста, добавьте бота в чат, назначьте его администратором и проверьте корректность ID")
-            return
-
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("Да", callback_data=f"CHAT-SAVE-1={self.request.text}"),
-            InlineKeyboardButton("Нет", callback_data="CHAT-SAVE-0")
-        ]])
-        await self.request.reply(f"Сохранить чат {chat.title}?", reply_markup=keyboard)
-
-
 class GetChatToSend(BaseHandler):
     __name__ = "GetChatToSend"
     HANDLER = CallbackQueryHandler
@@ -74,41 +45,8 @@ class GetChatToSend(BaseHandler):
         keyboard.inline_keyboard.append([
             InlineKeyboardButton("Этот чат", callback_data="CHAT-THIS")
         ])
-        keyboard.inline_keyboard.append([
-            InlineKeyboardButton("+ Добавить чат", callback_data="CHAT-ADD")
-        ])
 
         return keyboard
-
-    async def add_chat(self):
-        await self.request.message.edit((
-            "Отправьте сообщением ниже ID чата.\n"
-            "Пример: **-1002207320665**\n"
-            "Получить ID чата можно с помощью @LeadConverterToolkitBot"
-        ), reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("Отмена", callback_data="CHAT")
-        ]]))
-
-    async def save_chat(self, save: int | bool):
-        if isinstance(save, int):
-            save = bool(save)
-
-        if not save:
-            await self.request.message.edit(
-                "Чат не будет сохранен. Отправка на предыдущую страницу произойдет через полсекунды"
-            )
-            await asyncio.sleep(0.5)
-            await self.main()
-            return
-
-        save_chat_id = int(self.request.data.split("=")[1])
-        chat = await self.client.get_chat(save_chat_id)
-        ChatToSend.create(tg_id=save_chat_id, user=self.db_user)
-        await self.request.message.edit(
-            f"Чат {chat.title} сохранен! Отправка на предыдущую страницу произойдет через полсекунды"
-        )
-        await asyncio.sleep(0.5)
-        await self.main()
 
     async def apply_chat(self, chat_id: int):
         session = get_last_session(self.db_user)
@@ -140,23 +78,24 @@ class GetChatToSend(BaseHandler):
         await MissionController().update()
 
     async def main(self):
-        await self.request.message.edit(
-            "Выберите чат для отправки напоминаний", reply_markup=await self.chats_keyboard
-        )
+        try:
+            await self.request.message.edit(
+                (
+                    "Выберите чат для отправки напоминаний\n"
+                    "Чтобы чат появился в этом списке добавьте в него бота"
+                ),
+                reply_markup=await self.chats_keyboard
+            )
+        except (Exception,):
+            await self.request.answer("Никаких изменений")
 
     async def func(self):
         match self.request.data:
             case "CHAT":
                 await self.main()
 
-            case "CHAT-ADD":
-                await self.add_chat()
-
             case "CHAT-THIS":
                 await self.apply_chat(chat_id=self.request.message.chat.id)
-
-            case _ as c if c.startswith("CHAT-SAVE-"):
-                await self.save_chat(save=int(self.request.data[10]))
 
             case _ as c if c.strip("CHAT-PUBPRV").isalnum():
                 if "PUB" in c.split("-"):
