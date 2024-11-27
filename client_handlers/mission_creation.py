@@ -1,4 +1,5 @@
 import asyncio
+import math
 from datetime import datetime, timedelta
 
 from pyrogram import types
@@ -17,20 +18,44 @@ class GetChatToSend(BaseHandler):
     HANDLER = CallbackQueryHandler
     FILTER = create(lambda _, __, q: q and q.data and q.data.startswith("CHAT"))
 
+    def __init__(self, page: int = 0, buttons_on_page: int = 1):
+        super().__init__()
+        self.buttons_on_page = buttons_on_page
+        self.page = page
+
     @property
-    async def chats_keyboard(self) -> InlineKeyboardMarkup:
+    def data_sql(self) -> tuple[tuple[ChatToSend, ...], int]:
+        data = self.db_user.chats
+        on_page = data[self.page * self.buttons_on_page:(self.page + 1) * self.buttons_on_page]
+
+        return tuple(on_page), math.ceil(len(data) / self.buttons_on_page)
+
+    def base_keyboard(self, max_pages) -> list[list[InlineKeyboardButton]]:
+        buttons = []
+
+        if self.page != 0:
+            buttons.append(InlineKeyboardButton("<---<<<", callback_data="CHAT-prev_page"))
+
+        buttons += [InlineKeyboardButton("Этот чат", callback_data="CHAT-THIS")]
+
+        if self.page + 1 != max_pages:
+            buttons.append(InlineKeyboardButton(">>>--->", callback_data="CHAT-next_page"))
+
+        return [buttons]
+
+    @property
+    async def keyboard(self) -> tuple[InlineKeyboardMarkup, bool, int]:
         if ChatToSend.get_or_none(tg_id=self.request.message.chat.id) is None:
             ChatToSend.create(tg_id=self.request.message.chat.id, user=self.db_user)
 
+        content, max_pages = self.data_sql
         keyboard = InlineKeyboardMarkup([])
 
-        for c in self.db_user.chats:
+        for db_chat in content:
             try:
-                chat = await self.client.get_chat(c.tg_id)
-            except Exception as e:
-                cannot_get_chat = e
-                ChatToSend.delete_by_id(c.id)
-
+                chat = await self.client.get_chat(db_chat.tg_id)
+            except (Exception,):
+                ChatToSend.delete_by_id(db_chat.id)
                 continue
 
             if chat.title is not None:
@@ -39,14 +64,12 @@ class GetChatToSend(BaseHandler):
                 button_text = "Чат c @{}".format(chat.username[:22] + ("..." if len(chat.username) > 22 else ""))
 
             keyboard.inline_keyboard.append([InlineKeyboardButton(
-                button_text, callback_data=f"CHAT-{c.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
+                button_text, callback_data=f"CHAT-{db_chat.tg_id}-{'PRV' if chat.type == chat.type.PRIVATE else 'PUB'}"
             )])
 
-        keyboard.inline_keyboard.append([
-            InlineKeyboardButton("Этот чат", callback_data="CHAT-THIS")
-        ])
+            keyboard.inline_keyboard += self.base_keyboard(max_pages=max_pages)
 
-        return keyboard
+        return keyboard, True, max_pages
 
     async def apply_chat(self, chat_id: int):
         session = get_last_session(self.db_user)
@@ -78,13 +101,16 @@ class GetChatToSend(BaseHandler):
         await MissionController().update()
 
     async def main(self):
+        keyboard, _, max_pages = await self.keyboard
+
         try:
             await self.request.message.edit(
                 (
+                    f"Страница {self.page + 1}/{max_pages}\n"
                     "Выберите чат для отправки напоминаний\n"
                     "Чтобы чат появился в этом списке добавьте в него бота"
                 ),
-                reply_markup=await self.chats_keyboard
+                reply_markup=keyboard
             )
         except (Exception,):
             await self.request.answer("Никаких изменений")
@@ -92,6 +118,14 @@ class GetChatToSend(BaseHandler):
     async def func(self):
         match self.request.data:
             case "CHAT":
+                await self.main()
+
+            case "CHAT-prev_page":
+                self.page -= 1
+                await self.main()
+
+            case "CHAT-next_page":
+                self.page += 1
                 await self.main()
 
             case "CHAT-THIS":
