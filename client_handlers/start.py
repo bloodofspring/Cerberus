@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
@@ -32,9 +30,8 @@ class Main(BaseHandler):
 
     @property
     def keyboard(self):
-        create_mission_call_data = f"CHANGE-{str(datetime.now()).replace(' ', '-').replace(':', '-')[:-7]}-1-1-0"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Добавить напоминание", callback_data=create_mission_call_data)],
+            [InlineKeyboardButton("Добавить напоминание", callback_data="get_dt")],
             [InlineKeyboardButton("Мои напоминания", callback_data="missions_list")],
         ])
 
