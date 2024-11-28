@@ -103,7 +103,7 @@ class MissionController:
             try:
                 await client.send_message(chat_id=notification.chat_to_send.tg_id, text=notification.text)
 
-                if notification.send_at.consider_date or notification.send_at.delete_after_execution:
+                if notification.send_at.consider_date:
                     SendTime.delete_by_id(notification.send_at.id)
                     Notifications.delete_by_id(notification.id)
 

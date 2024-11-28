@@ -9,7 +9,7 @@ class SendTime(BaseModel):
     send_time = TimeField()
     consider_date = BooleanField()
     weekday = IntegerField()  # pass -1 if week day is unimportant
-    delete_after_execution = BooleanField()
+    # delete_after_execution = BooleanField()
 
 
 class ChatToSend(BaseModel):

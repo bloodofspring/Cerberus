@@ -160,7 +160,6 @@ class GetDateTime(BaseHandler):
 
     async def register_time(self, _, msg: types.Message):
         time = dateparser.parse(msg.text)
-        consider_weekday = any(map(lambda x: x in msg.text.lower(), WEEKDAYS_ACCUSATIVE + WEEKDAYS_NOMINATIVE))
 
         if time is None:
             await msg.reply(
@@ -169,7 +168,10 @@ class GetDateTime(BaseHandler):
             )
             return
 
-        if (time.date() != datetime.now().date() and not consider_weekday) and time < datetime.now():
+        consider_weekday: bool = any(map(lambda x: x in msg.text.lower(), WEEKDAYS_ACCUSATIVE + WEEKDAYS_NOMINATIVE))
+        consider_date: bool = time.date() != datetime.now().date() and not consider_weekday
+
+        if consider_date and time < datetime.now():
             await msg.reply(
                 "Данное напоминание будет удалено после исполнения;\n"
                 f"Время его отправки должно быть больше {str(datetime.now())[:-7]}",
@@ -177,44 +179,11 @@ class GetDateTime(BaseHandler):
             )
             return
 
-        await self.client.send_message(
-            msg.chat.id, "{}\n\nСохранить?".format(
-                render_time(
-                    (time, False, (time.date() != datetime.now().date() and not consider_weekday), consider_weekday))
-            ), reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("Да", callback_data=f"get_dt-ask_deletion={str(time)}={int(consider_weekday)}"),
-                InlineKeyboardButton("Нет", callback_data="get_dt-ask_time")
-            ]])
-        )
-
-    async def ask_deletion(self, *data):
-        if dateparser.parse(data[0]).date() != datetime.now().date() and not int(data[1]):
-            await self.submit(time_str=data[0], consider_weekday=data[1], delete_after_execution=False)
-            return
-
-        await self.request.message.edit(
-            "Удалить напоминание после отправки?",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("Да", callback_data=f"get_dt-submit={'='.join(data)}=1"),
-                InlineKeyboardButton("Нет", callback_data=f"get_dt-submit={'='.join(data)}=0")
-            ]])
-        )
-
-    async def submit(self, time_str: str, consider_weekday: int | str | bool, delete_after_execution: int | str | bool):
-        if not isinstance(delete_after_execution, bool):
-            delete_after_execution = bool(int(delete_after_execution))
-
-        if not isinstance(consider_weekday, bool):
-            consider_weekday = bool(int(consider_weekday))
-
-        time = dateparser.parse(time_str)
-
         created_send_time = SendTime.create(
             send_date=time.date(),
             send_time=time.time(),
-            consider_date=(time.date() != datetime.now().date() and not consider_weekday),
+            consider_date=consider_date,
             weekday=time.weekday() if consider_weekday else -1,
-            delete_after_execution=delete_after_execution
         )
         CreationSession.create(
             user=self.db_user,
@@ -223,6 +192,31 @@ class GetDateTime(BaseHandler):
             text="",
         )
 
+        await self.client.send_message(
+            msg.chat.id, "{}\n\nСохранить?".format(
+                render_time(
+                    consider_date=consider_date,
+                    consider_weekday=consider_weekday,
+                    send_time=time.time(),
+                    send_date=time.date()
+            )),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("Да", callback_data=f"get_dt-submit"),
+                    InlineKeyboardButton("Нет", callback_data="get_dt-delete_created_data")
+            ]])
+        )
+
+    async def delete_created_data(self):
+        session = get_last_session(self.db_user)
+        if session is None:
+            return
+
+        SendTime.delete_by_id(session.time_point.id)
+        CreationSession.delete_by_id(session.id)
+
+        await self.ask_time()
+
+    async def submit(self):
         await self.request.message.edit(
             "Время отправки сохранено!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Дальше", callback_data="CHAT")]])
@@ -244,5 +238,5 @@ class GetDateTime(BaseHandler):
             case "get_dt":
                 await self.ask_time()
 
-            case _ as c if hasattr(self, self.request.data.split("-")[1].split("=")[0]):
-                await getattr(self, c.split("-")[1].split("=")[0])(*c.split("=")[1:])
+            case _ as c if hasattr(self, self.request.data.split("-")[1]):
+                await getattr(self, c.split("-")[1])()
