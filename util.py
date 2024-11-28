@@ -1,4 +1,4 @@
-from datetime import time, datetime
+from datetime import time, datetime, date
 
 from database.models import Notifications, SendTime, CreationSession, ChatToSend, BotUsers
 from instances import client
@@ -8,21 +8,23 @@ WEEKDAYS_NOMINATIVE = ["понедельник", "вторник", "среда",
 MIDNIGHT: time = time(hour=0, minute=0, second=0)
 
 
-def render_time(db_time: SendTime | tuple[datetime, bool, bool, bool]):
+def render_time(
+        db_time: SendTime | None = None,
+        consider_date: bool | None = None,
+        consider_weekday: bool | None = None,
+        send_date: date | None = None,
+        send_time: time | None = None
+) -> str:
     send_time_text = ""
-    
+
+    if db_time is None and not all(map(lambda x: x is not None, [consider_date, consider_weekday, send_date, send_time])):
+        raise TypeError("Not enough arguments!")
+
     if isinstance(db_time, SendTime):
-        delete_after_execution = db_time.delete_after_execution
         consider_date = db_time.consider_date
         consider_weekday = 0 <= db_time.weekday <= 6
         send_date = db_time.send_date
         send_time = db_time.send_time
-    else:
-        delete_after_execution = db_time[1]
-        consider_date = db_time[2]
-        consider_weekday = db_time[3]
-        send_date = db_time[0].date()
-        send_time = db_time[0].time()
 
     if consider_date:
         send_time_text += "**Дата:** {}/{}/{}\n".format(
@@ -37,15 +39,13 @@ def render_time(db_time: SendTime | tuple[datetime, bool, bool, bool]):
         str(send_time.second).rjust(2, "0")
     )
 
-    if consider_weekday and not delete_after_execution and not consider_date:
+    if consider_weekday and not consider_date:
         send_time_text += "Ближайшее напоминание будет отправлено {} и ".format(WEEKDAYS_ACCUSATIVE[send_date.weekday()])
 
-    if delete_after_execution or consider_date:
-        send_time_text += "будет удалено после исполнения " + ("(Отправка по дате)" if consider_date else "")
-    elif not consider_weekday:
-        send_time_text += "будет отправляться каждый день"
+    if consider_date:
+        send_time_text += "будет удалено после исполнения (Отправка по дате)"
     else:
-        send_time_text = send_time_text.strip(" и")
+        send_time_text += "будет отправляться каждый день"
 
     send_time_text = send_time_text.replace("и будет", "и")
     
