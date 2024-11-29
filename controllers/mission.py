@@ -69,6 +69,7 @@ class MissionController:
         await asyncio.sleep(0.5)
 
     async def update(self):
+        self.delete_unused_time_points()
         print(
             Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
             Fore.LIGHTMAGENTA_EX + "Updating..."
