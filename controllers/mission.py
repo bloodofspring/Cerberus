@@ -74,8 +74,7 @@ class MissionController:
             Fore.LIGHTYELLOW_EX + f"[{datetime.now()}][!]>>-||--> " +
             Fore.LIGHTMAGENTA_EX + "Updating..."
         )
-        schedule.clear("midnight_update")  # delete midnight duplicate
-        schedule.clear("send_mission")  # delete current mission
+        schedule.default_scheduler.jobs.clear()
         today_missions = self.today_missions_sql
 
         if not today_missions:
